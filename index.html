@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+  <title>AESLA — Field Service Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    *{font-family:'Inter',sans-serif;}
+    .combo-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #6366f1;border-radius:12px;box-shadow:0 8px 32px rgba(99,102,241,.15);max-height:240px;overflow-y:auto;z-index:50;animation:dropIn .15s ease-out;}
+    @keyframes dropIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+    .combo-option{padding:9px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .1s;border-bottom:1px solid #f3f4f6;}
+    .combo-option:last-child{border-bottom:none;}
+    .combo-option:hover,.combo-option.active{background:#eef2ff;color:#4f46e5;}
+    .combo-option.new-entry{color:#7c3aed;font-style:italic;border-top:1px solid #e0e7ff;}
+    .combo-option.new-entry:hover{background:#f5f3ff;}
+    .part-chip{display:inline-flex;align-items:center;gap:6px;background:#eef2ff;color:#4338ca;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:500;border:1px solid #c7d2fe;animation:chipIn .2s ease-out;}
+    @keyframes chipIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+    .part-chip button{color:#818cf8;transition:color .1s;}
+    .part-chip button:hover{color:#ef4444;}
+    .step-active{background:#6366f1;color:white;}
+    .step-done{background:#10b981;color:white;}
+    .step-idle{background:#e5e7eb;color:#9ca3af;}
+    .modal-overlay{position:fixed;inset:0;background:rgba(17,24,39,.65);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn .2s ease-out;}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .modal-box{background:#1e1b4b;border-radius:16px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;animation:slideUp .2s ease-out;}
+    @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .check-pass{background:#d1fae5;color:#065f46;border-color:#6ee7b7;}
+    .check-fail{background:#fee2e2;color:#991b1b;border-color:#fca5a5;}
+    .check-na  {background:#f3f4f6;color:#6b7280;border-color:#d1d5db;}
+    .photo-thumb{width:80px;height:80px;object-fit:cover;border-radius:10px;border:2px solid #e0e7ff;}
+    .photo-slot{width:80px;height:80px;border-radius:10px;border:2px dashed #c7d2fe;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:#f5f3ff;transition:all .2s;}
+    .photo-slot:hover{border-color:#6366f1;background:#eef2ff;}
+    ::-webkit-scrollbar{width:5px;}
+    ::-webkit-scrollbar-thumb{background:#c7d2fe;border-radius:3px;}
+    .json-key{color:#8b5cf6;}.json-str{color:#34d399;}.json-num{color:#fbbf24;}.json-bool{color:#60a5fa;}
+    .review-section{background:#f8fafc;border-radius:14px;padding:16px;margin-bottom:12px;}
+    .review-label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;}
+    .review-value{font-size:13px;color:#1e293b;margin-top:2px;}
+    .status-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;}
+    input[type=file]{display:none;}
+    .btn-pulse{animation:pulse 1.5s infinite;}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+    select{background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");background-position:right .5rem center;background-repeat:no-repeat;background-size:1.5em 1.5em;padding-right:2.5rem;}
+    .tbl-input{width:100%;background:transparent;border:none;font-size:12px;padding:4px 6px;outline:none;border-radius:6px;}
+    .tbl-input:focus{background:#eef2ff;}
+    @media print{
+      header,.step-nav,button{display:none!important;}
+      .print-show{display:block!important;}
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-indigo-50 min-h-screen pb-20">
+
+<!-- ═══ HEADER ═══════════════════════════════════════════ -->
+<header class="bg-white shadow-sm sticky top-0 z-40">
+  <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold text-gray-800 leading-tight">AESLA Field Service</h1>
+        <p class="text-xs text-indigo-500 font-medium">Preventive Maintenance Report</p>
+      </div>
+    </div>
+    <div class="text-right">
+      <div class="text-xs font-mono font-bold text-indigo-700" id="order-number">...</div>
+      <div class="text-xs text-gray-400" id="current-date"></div>
+    </div>
+  </div>
+  <!-- Step Pills -->
+  <div class="max-w-2xl mx-auto px-4 pb-3">
+    <div class="flex items-center gap-1 text-center">
+      <div class="step-pill flex-1 text-xs py-1 rounded-full font-semibold transition-all step-active" id="sp1">① Job</div>
+      <div class="w-3 h-px bg-gray-300 shrink-0"></div>
+      <div class="step-pill flex-1 text-xs py-1 rounded-full font-semibold transition-all step-idle" id="sp2">② Problem</div>
+      <div class="w-3 h-px bg-gray-300 shrink-0"></div>
+      <div class="step-pill flex-1 text-xs py-1 rounded-full font-semibold transition-all step-idle" id="sp3">③ Checklist</div>
+      <div class="w-3 h-px bg-gray-300 shrink-0"></div>
+      <div class="step-pill flex-1 text-xs py-1 rounded-full font-semibold transition-all step-idle" id="sp4">④ Resolution</div>
+      <div class="w-3 h-px bg-gray-300 shrink-0"></div>
+      <div class="step-pill flex-1 text-xs py-1 rounded-full font-semibold transition-all step-idle" id="sp5">⑤ Review</div>
+      <div class="w-3 h-px bg-gray-300 shrink-0"></div>
+      <div class="step-pill flex-1 text-xs py-1 rounded-full font-semibold transition-all step-idle" id="sp6">⑥ Sign</div>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 pt-5">
+<form id="serviceForm" novalidate>
+
+<!-- ═══ STEP 1 — JOB INFO ══════════════════════════════ -->
+<section id="step-1" class="step-section space-y-4">
+  <div class="bg-white rounded-2xl shadow-sm border border-indigo-50 p-5 space-y-5">
+    <div class="flex items-center gap-2">
+      <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      </div>
+      <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Job Information</h2>
+    </div>
+
+    <!-- Report No / Date row -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="report-no">
+          Report No. <span class="text-red-400">*</span>
+        </label>
+        <input id="report-no" type="text" autocomplete="off"
+          class="w-full rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-mono font-bold text-indigo-700 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder-indigo-300"
+          placeholder="e.g. AM1/8055"
+          oninput="document.getElementById('order-number').textContent=this.value||'—'"/>
+        <p class="error-msg text-xs text-red-500 mt-1 hidden" id="err-reportno">Please enter report number</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="service-date">Service Date</label>
+        <input id="service-date" type="date" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all"/>
+      </div>
+    </div>
+
+    <!-- Technician Dropdown -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="technician">
+        Technician <span class="text-red-400">*</span>
+      </label>
+      <select id="technician" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all">
+        <option value="">— Select Technician —</option>
+        <option value="Mr. Virayuth Chaivong (Yuth)" data-role="Technical support lead">Mr. Virayuth Chaivong — Yuth | Technical support lead</option>
+        <option value="Mr. Koson Ponsongkram (Tae)" data-role="Technical">Mr. Koson Ponsongkram — Tae | Technical</option>
+        <option value="Mr. Wuttichai Danggoman (Wut)" data-role="Technical support lead">Mr. Wuttichai Danggoman — Wut | Technical support lead</option>
+        <option value="Mr. Aphisit Tamkaew (Ohm)" data-role="Technical support lead">Mr. Aphisit Tamkaew — Ohm | Technical support lead</option>
+        <option value="Mr. Prachaya Eksatit (Balloon)" data-role="Engineer support lead">Mr. Prachaya Eksatit — Balloon | Engineer support lead</option>
+        <option value="Mr. Phoobodin Buranabun (Dennis)" data-role="Engineer and technical support">Mr. Phoobodin Buranabun — Dennis | Engineer &amp; Technical support</option>
+        <option value="Mr. Natthaphon Loprasoetkun (Kong)" data-role="Technical support">Mr. Natthaphon Loprasoetkun — Kong | Technical support</option>
+        <option value="Mr. Oabnithi Nooprasoerd (Oat)" data-role="Technical support">Mr. Oabnithi Nooprasoerd — Oat | Technical support</option>
+      </select>
+      <p class="error-msg text-xs text-red-500 mt-1 hidden" id="err-tech">Please select technician</p>
+    </div>
+
+    <!-- Customer Clinic Combobox -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
+        Customer Clinic <span class="text-red-400">*</span>
+      </label>
+      <div class="relative" id="customer-combo">
+        <input id="customer-input" type="text" autocomplete="off"
+          class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pr-10 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder-gray-400"
+          placeholder="Search clinic name…"/>
+        <button type="button" id="customer-toggle" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="combo-dropdown hidden" id="customer-dropdown"></div>
+        <input type="hidden" id="customer-value"/>
+        <div class="hidden mt-1.5" id="customer-new-badge">
+          <span class="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-medium">✦ New Clinic — will be registered in SAP</span>
+        </div>
+      </div>
+      <p class="error-msg text-xs text-red-500 mt-1 hidden" id="err-customer">Please select or enter a clinic</p>
+    </div>
+
+    <!-- Customer Name (Contact Person) — starred -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="customer-name">
+        Customer Name (Contact) <span class="text-red-400">★ Required</span>
+      </label>
+      <input id="customer-name" type="text" autocomplete="off"
+        class="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm focus:outline-none focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100 transition-all placeholder-gray-400"
+        placeholder="e.g. คุณสมชาย / Dr. Somchai…"/>
+      <p class="error-msg text-xs text-red-500 mt-1 hidden" id="err-custname">Please enter customer contact name</p>
+    </div>
+
+    <!-- Customer Email -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="customer-email">
+        Customer Email <span class="text-red-400">★ Required</span>
+      </label>
+      <input id="customer-email" type="email" autocomplete="off"
+        class="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm focus:outline-none focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100 transition-all placeholder-gray-400"
+        placeholder="e.g. doctor@clinic.com…"/>
+      <p class="error-msg text-xs text-red-500 mt-1 hidden" id="err-email">Please enter a valid email address</p>
+    </div>
+
+    <!-- Machine + Serial -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
+        Machine / Equipment <span class="text-red-400">*</span>
+      </label>
+      <div class="relative" id="machine-combo">
+        <input id="machine-input" type="text" autocomplete="off"
+          class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pr-10 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder-gray-400"
+          placeholder="Search machine / product…"/>
+        <button type="button" id="machine-toggle" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="combo-dropdown hidden" id="machine-dropdown"></div>
+        <input type="hidden" id="machine-value"/>
+        <div class="hidden mt-1.5" id="machine-new-badge">
+          <span class="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-medium">✦ New Equipment — will be registered in SAP</span>
+        </div>
+      </div>
+      <p class="error-msg text-xs text-red-500 mt-1 hidden" id="err-machine">Please select or enter a machine</p>
+    </div>
+
+    <!-- Software Model + Serial No -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="software-model">
+          Software Model / Ver.
+        </label>
+        <input id="software-model" type="text" autocomplete="off"
+          class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder-gray-400"
+          placeholder="e.g. v3.2.1, FW-5.0…"/>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="serial-no">
+          Serial Number <span class="text-red-400">*</span>
+        </label>
+        <input id="serial-no" type="text" autocomplete="off"
+          class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder-gray-400"
+          placeholder="e.g. XE126A125…"/>
+        <p class="error-msg text-xs text-red-500 mt-1 hidden" id="err-serial">Please enter serial number</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-end step-nav">
+    <button type="button" onclick="goStep(2)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center gap-2">
+      Next: Problem <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</section>
+
+<!-- ═══ STEP 2 — PROBLEM ═══════════════════════════════ -->
+<section id="step-2" class="step-section hidden space-y-4">
+  <div class="bg-white rounded-2xl shadow-sm border border-orange-50 p-5 space-y-5">
+    <div class="flex items-center gap-2">
+      <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+      <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Problem / Symptom</h2>
+    </div>
+
+    <!-- Category chips -->
+    <div>
+      <div class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Problem Category</div>
+      <div class="flex flex-wrap gap-2" id="category-chips">
+        <button type="button" data-val="Mechanical" onclick="toggleCat(this)" class="cat-chip text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-all font-medium">⚙️ Mechanical</button>
+        <button type="button" data-val="Electrical" onclick="toggleCat(this)" class="cat-chip text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-all font-medium">⚡ Electrical</button>
+        <button type="button" data-val="Software" onclick="toggleCat(this)" class="cat-chip text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-all font-medium">💻 Software</button>
+        <button type="button" data-val="Hydraulic" onclick="toggleCat(this)" class="cat-chip text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-all font-medium">💧 Hydraulic</button>
+        <button type="button" data-val="Pneumatic" onclick="toggleCat(this)" class="cat-chip text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-all font-medium">🌬️ Pneumatic</button>
+        <button type="button" data-val="Calibration" onclick="toggleCat(this)" class="cat-chip text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-all font-medium">📐 Calibration</button>
+        <button type="button" data-val="Cooling" onclick="toggleCat(this)" class="cat-chip text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-all font-medium">❄️ Cooling</button>
+        <button type="button" data-val="Water System" onclick="toggleCat(this)" class="cat-chip text-xs px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:border-orange-400 hover:text-orange-600 transition-all font-medium">🚿 Water System</button>
+      </div>
+    </div>
+
+    <!-- Error Code -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="error-code">Error Code / Fault Code</label>
+      <input id="error-code" type="text" autocomplete="off"
+        class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-100 transition-all placeholder-gray-400"
+        placeholder="e.g. E-402, ALM-0021…"/>
+    </div>
+
+    <!-- Problem Description -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="problem-desc">
+        Problem Description <span class="text-red-400">*</span>
+      </label>
+      <textarea id="problem-desc" rows="4"
+        class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-orange-400 focus:bg-white focus:ring-2 focus:ring-orange-100 transition-all placeholder-gray-400 resize-none"
+        placeholder="Describe symptoms observed…" oninput="cnt('problem-desc','cnt-prob')"></textarea>
+      <div class="flex justify-between mt-1">
+        <p class="error-msg text-xs text-red-500 hidden" id="err-problem">Please describe the problem</p>
+        <p class="text-xs text-gray-400 ml-auto"><span id="cnt-prob">0</span> chars</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-between step-nav">
+    <button type="button" onclick="goStep(1)" class="bg-white hover:bg-gray-50 text-gray-600 text-sm font-semibold px-5 py-3 rounded-xl border border-gray-200 shadow-sm transition-all flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>Back</button>
+    <button type="button" onclick="goStep(3)" class="bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-md shadow-orange-200 transition-all flex items-center gap-2">Next: Checklist <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+</section>
+
+<!-- ═══ STEP 3 — SERVICE CHECKLIST + PARTS + PHOTOS ═══ -->
+<section id="step-3" class="step-section hidden space-y-4">
+
+  <!-- 3A: PM Test Checklist -->
+  <div class="bg-white rounded-2xl shadow-sm border border-blue-50 p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+      </div>
+      <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">PM Test Checklist</h2>
+    </div>
+
+    <!-- Checklist Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs border-collapse" id="checklist-table">
+        <thead>
+          <tr class="bg-indigo-50">
+            <th class="text-left px-3 py-2 font-semibold text-indigo-700 rounded-tl-xl w-6">#</th>
+            <th class="text-left px-3 py-2 font-semibold text-indigo-700">Test Item</th>
+            <th class="text-center px-2 py-2 font-semibold text-indigo-700 w-20">Result</th>
+            <th class="text-left px-3 py-2 font-semibold text-indigo-700 rounded-tr-xl">Remark</th>
+          </tr>
+        </thead>
+        <tbody id="checklist-body">
+          <!-- rows injected by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Add custom test item -->
+    <div class="flex gap-2 mt-3">
+      <input id="custom-test-input" type="text"
+        class="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs focus:outline-none focus:border-blue-400 focus:bg-white transition-all placeholder-gray-400"
+        placeholder="Add custom test item…"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTest();}"/>
+      <button type="button" onclick="addCustomTest()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all">+ Add</button>
+    </div>
+  </div>
+
+  <!-- 3B: Cleaning Items -->
+  <div class="bg-white rounded-2xl shadow-sm border border-teal-50 p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-6 h-6 rounded-full bg-teal-100 flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+      </div>
+      <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Cleaning Checklist</h2>
+    </div>
+
+    <div id="cleaning-list" class="space-y-2 mb-3">
+      <!-- cleaning rows injected by JS -->
+    </div>
+    <div class="flex gap-2">
+      <input id="cleaning-input" type="text"
+        class="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs focus:outline-none focus:border-teal-400 focus:bg-white transition-all placeholder-gray-400"
+        placeholder="Add cleaning item…"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();addCleaningItem();}"/>
+      <button type="button" onclick="addCleaningItem()" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all">+ Add</button>
+    </div>
+  </div>
+
+  <!-- 3C: Spare Parts / Used Parts with Quantity -->
+  <div class="bg-white rounded-2xl shadow-sm border border-green-50 p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Spare / Replaced Parts</h2>
+    </div>
+
+    <!-- Parts table -->
+    <div class="overflow-x-auto mb-3">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="bg-green-50">
+            <th class="text-left px-3 py-2 font-semibold text-green-700 rounded-tl-xl w-6">#</th>
+            <th class="text-left px-3 py-2 font-semibold text-green-700">Part / Item Description</th>
+            <th class="text-center px-2 py-2 font-semibold text-green-700 w-20">Qty</th>
+            <th class="text-center px-2 py-2 font-semibold text-green-700 w-14">Unit</th>
+            <th class="text-center px-2 py-2 font-semibold text-green-700 rounded-tr-xl w-8"></th>
+          </tr>
+        </thead>
+        <tbody id="parts-tbody"></tbody>
+      </table>
+    </div>
+    <!-- Add part row -->
+    <div class="grid grid-cols-12 gap-2">
+      <div class="col-span-5">
+        <input id="part-desc" type="text"
+          class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs focus:outline-none focus:border-green-400 focus:bg-white transition-all placeholder-gray-400"
+          placeholder="Part description…"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addPart();}"/>
+      </div>
+      <div class="col-span-2">
+        <input id="part-qty" type="number" min="1" value="1"
+          class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs focus:outline-none focus:border-green-400 focus:bg-white transition-all text-center"/>
+      </div>
+      <div class="col-span-2">
+        <select id="part-unit" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-2 py-2.5 text-xs focus:outline-none focus:border-green-400 focus:bg-white transition-all">
+          <option>EA</option><option>SET</option><option>M</option><option>BOX</option><option>L</option>
+        </select>
+      </div>
+      <div class="col-span-3">
+        <button type="button" onclick="addPart()" class="w-full bg-green-500 hover:bg-green-600 text-white px-3 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all">+ Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3D: Photo Upload -->
+  <div class="bg-white rounded-2xl shadow-sm border border-purple-50 p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <div class="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Service Photos</h2>
+      </div>
+      <span class="text-xs text-gray-400" id="photo-count">0 / 10 photos</span>
+    </div>
+
+    <input type="file" id="photo-file-input" multiple accept="image/*" onchange="handlePhotoUpload(this)"/>
+    <div class="flex flex-wrap gap-3" id="photo-grid">
+      <!-- Slot to add -->
+      <div class="photo-slot" onclick="document.getElementById('photo-file-input').click()" id="photo-add-slot">
+        <svg class="w-6 h-6 text-indigo-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        <span class="text-xs text-indigo-400 font-medium">Add Photo</span>
+      </div>
+    </div>
+    <p class="text-xs text-gray-400 mt-3">📷 Tap to add up to 10 photos. Supports JPG, PNG, HEIC.</p>
+  </div>
+
+  <div class="flex justify-between step-nav">
+    <button type="button" onclick="goStep(2)" class="bg-white hover:bg-gray-50 text-gray-600 text-sm font-semibold px-5 py-3 rounded-xl border border-gray-200 shadow-sm transition-all flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>Back</button>
+    <button type="button" onclick="goStep(4)" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-md shadow-blue-200 transition-all flex items-center gap-2">Next: Resolution <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+</section>
+
+<!-- ═══ STEP 4 — RESOLUTION ════════════════════════════ -->
+<section id="step-4" class="step-section hidden space-y-4">
+  <div class="bg-white rounded-2xl shadow-sm border border-green-50 p-5 space-y-5">
+    <div class="flex items-center gap-2">
+      <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Resolution / Action Taken</h2>
+    </div>
+
+    <!-- Service Type -->
+    <div>
+      <div class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Service Type</div>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="flex items-center gap-2 p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all">
+          <input type="radio" name="service-type" value="Corrective" class="text-green-500" checked/>
+          <span class="text-xs font-medium">🔧 Corrective</span>
+        </label>
+        <label class="flex items-center gap-2 p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all">
+          <input type="radio" name="service-type" value="Preventive" class="text-green-500"/>
+          <span class="text-xs font-medium">📋 Preventive</span>
+        </label>
+        <label class="flex items-center gap-2 p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all">
+          <input type="radio" name="service-type" value="Installation" class="text-green-500"/>
+          <span class="text-xs font-medium">🏗️ Installation</span>
+        </label>
+        <label class="flex items-center gap-2 p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all">
+          <input type="radio" name="service-type" value="Calibration" class="text-green-500"/>
+          <span class="text-xs font-medium">📐 Calibration</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Action Taken -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="resolution">
+        Action Taken <span class="text-red-400">*</span>
+      </label>
+      <textarea id="resolution" rows="4"
+        class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-green-400 focus:bg-white focus:ring-2 focus:ring-green-100 transition-all placeholder-gray-400 resize-none"
+        placeholder="Describe what was fixed / done…" oninput="cnt('resolution','cnt-res')"></textarea>
+      <div class="flex justify-between mt-1">
+        <p class="error-msg text-xs text-red-500 hidden" id="err-resolution">Please describe the action taken</p>
+        <p class="text-xs text-gray-400 ml-auto"><span id="cnt-res">0</span> chars</p>
+      </div>
+    </div>
+
+    <!-- Device Usage Counters (from PM report) -->
+    <div>
+      <div class="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Device Usage Counters</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1" for="shot-count">Device Shot Count</label>
+          <input id="shot-count" type="number" min="0"
+            class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:outline-none focus:border-green-400 focus:bg-white transition-all placeholder-gray-400"
+            placeholder="e.g. 34028"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1" for="handpiece-count">Handpiece Start Count</label>
+          <input id="handpiece-count" type="number" min="0"
+            class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:outline-none focus:border-green-400 focus:bg-white transition-all placeholder-gray-400"
+            placeholder="e.g. 240116"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Downtime + Status -->
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="downtime">Downtime (hrs)</label>
+        <input id="downtime" type="number" min="0" step="0.5"
+          class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-green-400 focus:bg-white transition-all"
+          placeholder="0.0"/>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="status-after">Machine Status After</label>
+        <select id="status-after"
+          class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm focus:outline-none focus:border-green-400 focus:bg-white transition-all">
+          <option value="working">✅ Working</option>
+          <option value="followup">⚠️ Able to run — Need to follow up</option>
+          <option value="cannot_run">🔴 Cannot run</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Remarks -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide" for="remarks">Additional Remarks</label>
+      <textarea id="remarks" rows="2"
+        class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:border-green-400 focus:bg-white transition-all placeholder-gray-400 resize-none"
+        placeholder="Follow-up actions, next PM date, recommendations…"></textarea>
+    </div>
+  </div>
+
+  <div class="flex justify-between step-nav">
+    <button type="button" onclick="goStep(3)" class="bg-white hover:bg-gray-50 text-gray-600 text-sm font-semibold px-5 py-3 rounded-xl border border-gray-200 shadow-sm transition-all flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>Back</button>
+    <button type="button" onclick="goStep(5)" class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-md shadow-green-200 transition-all flex items-center gap-2">Review & Submit <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+</section>
+
+<!-- ═══ STEP 5 — FULL REVIEW ═══════════════════════════ -->
+<section id="step-5" class="step-section hidden space-y-4">
+
+  <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-5 text-white">
+    <div class="text-xs font-semibold opacity-80 uppercase tracking-widest mb-1">AESLA — Preventive Maintenance Report</div>
+    <div class="text-xl font-bold" id="rev-order-no">—</div>
+    <div class="text-sm opacity-80 mt-1" id="rev-date-tech">—</div>
+  </div>
+
+  <!-- Section A: Job Info -->
+  <div class="review-section">
+    <div class="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-3">① Job Information</div>
+    <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+      <div><div class="review-label">Customer Clinic</div><div class="review-value font-semibold" id="rv-clinic">—</div></div>
+      <div><div class="review-label">Customer Name</div><div class="review-value text-red-700 font-semibold" id="rv-custname">—</div></div>
+      <div class="col-span-2"><div class="review-label">Customer Email</div><div class="review-value text-indigo-700" id="rv-email">—</div></div>
+      <div><div class="review-label">Machine / Equipment</div><div class="review-value" id="rv-machine">—</div></div>
+      <div><div class="review-label">Serial Number</div><div class="review-value font-mono" id="rv-serial">—</div></div>
+      <div><div class="review-label">Software Model</div><div class="review-value font-mono" id="rv-software">—</div></div>
+      <div><div class="review-label">Service Date</div><div class="review-value" id="rv-date">—</div></div>
+    </div>
+  </div>
+
+  <!-- Section B: Problem -->
+  <div class="review-section">
+    <div class="text-xs font-bold text-orange-600 uppercase tracking-widest mb-3">② Problem / Symptom</div>
+    <div class="space-y-3">
+      <div><div class="review-label">Category</div><div class="review-value flex flex-wrap gap-1.5 mt-1" id="rv-categories">—</div></div>
+      <div><div class="review-label">Error Code</div><div class="review-value font-mono" id="rv-errcode">—</div></div>
+      <div><div class="review-label">Description</div><div class="review-value bg-orange-50 rounded-lg p-3 mt-1 leading-relaxed" id="rv-problem">—</div></div>
+    </div>
+  </div>
+
+  <!-- Section C: Checklist -->
+  <div class="review-section">
+    <div class="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3">③ PM Test Checklist</div>
+    <div id="rv-checklist" class="space-y-1.5"></div>
+    <div class="text-xs font-bold text-teal-600 uppercase tracking-widest mt-4 mb-2">Cleaning</div>
+    <div id="rv-cleaning" class="space-y-1.5"></div>
+    <div class="text-xs font-bold text-green-600 uppercase tracking-widest mt-4 mb-2">Parts Used</div>
+    <div id="rv-parts-table" class="overflow-x-auto"></div>
+    <div class="text-xs font-bold text-purple-600 uppercase tracking-widest mt-4 mb-2">Photos</div>
+    <div id="rv-photos" class="flex flex-wrap gap-2"></div>
+  </div>
+
+  <!-- Section D: Resolution -->
+  <div class="review-section">
+    <div class="text-xs font-bold text-green-600 uppercase tracking-widest mb-3">④ Resolution</div>
+    <div class="space-y-3">
+      <div><div class="review-label">Service Type</div><div class="review-value" id="rv-svctype">—</div></div>
+      <div><div class="review-label">Action Taken</div><div class="review-value bg-green-50 rounded-lg p-3 mt-1 leading-relaxed" id="rv-action">—</div></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div><div class="review-label">Device Shot Count</div><div class="review-value font-mono" id="rv-shots">—</div></div>
+        <div><div class="review-label">Handpiece Count</div><div class="review-value font-mono" id="rv-hp">—</div></div>
+        <div><div class="review-label">Downtime</div><div class="review-value" id="rv-downtime">—</div></div>
+        <div><div class="review-label">Machine Status After</div><div class="review-value" id="rv-status">—</div></div>
+      </div>
+      <div><div class="review-label">Remarks</div><div class="review-value" id="rv-remarks">—</div></div>
+    </div>
+  </div>
+
+  <div class="flex justify-between step-nav">
+    <button type="button" onclick="goStep(4)" class="bg-white hover:bg-gray-50 text-gray-600 text-sm font-semibold px-5 py-3 rounded-xl border border-gray-200 shadow-sm transition-all flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>Back</button>
+    <button type="button" onclick="goStep(6)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-6 py-3 rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center gap-2">
+      Next: Customer Sign <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</section>
+
+<!-- ═══ STEP 6 — CUSTOMER SIGNATURE ══════════════════════ -->
+<section id="step-6" class="step-section hidden space-y-4">
+
+  <div class="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-5 text-white">
+    <div class="text-xs font-semibold opacity-80 uppercase tracking-widest mb-1">Final Step</div>
+    <div class="text-lg font-bold">Customer Acknowledgement</div>
+    <div class="text-sm opacity-80 mt-1">Please have the customer review and sign below</div>
+  </div>
+
+  <!-- Summary mini card -->
+  <div class="bg-white rounded-2xl shadow-sm border border-violet-100 p-5 space-y-3">
+    <div class="text-xs font-bold text-violet-600 uppercase tracking-widest mb-1">Service Summary</div>
+    <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+      <div><span class="text-gray-400 font-semibold">Report No.</span><div class="font-mono font-bold text-indigo-700 mt-0.5" id="sign-report-no">—</div></div>
+      <div><span class="text-gray-400 font-semibold">Date</span><div class="mt-0.5 text-gray-700" id="sign-date">—</div></div>
+      <div><span class="text-gray-400 font-semibold">Clinic</span><div class="mt-0.5 text-gray-700" id="sign-clinic">—</div></div>
+      <div><span class="text-gray-400 font-semibold">Machine</span><div class="mt-0.5 text-gray-700" id="sign-machine">—</div></div>
+      <div><span class="text-gray-400 font-semibold">Serial No.</span><div class="font-mono mt-0.5 text-gray-700" id="sign-serial">—</div></div>
+      <div><span class="text-gray-400 font-semibold">Status After</span><div class="mt-0.5 font-semibold" id="sign-status">—</div></div>
+    </div>
+  </div>
+
+  <!-- Technician Sign -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <div class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Technician Signature</div>
+    <div class="text-sm text-gray-700 mb-1 font-medium" id="sign-tech-name">—</div>
+    <div class="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 relative" style="height:120px;">
+      <canvas id="canvas-tech" width="600" height="120" class="w-full h-full touch-none cursor-crosshair"></canvas>
+      <button type="button" onclick="clearCanvas('canvas-tech')"
+        class="absolute top-2 right-2 text-xs text-gray-400 hover:text-red-500 bg-white border border-gray-200 rounded-lg px-2 py-1 transition-all">Clear</button>
+    </div>
+  </div>
+
+  <!-- Customer Sign -->
+  <div class="bg-white rounded-2xl shadow-sm border border-violet-100 p-5">
+    <div class="text-xs font-bold text-violet-600 uppercase tracking-widest mb-3">Customer Signature <span class="text-red-400">★</span></div>
+
+    <!-- Customer name display + date -->
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div>
+        <div class="text-xs text-gray-500 font-semibold mb-1">Customer Name</div>
+        <div class="bg-violet-50 rounded-xl px-4 py-2.5 text-sm font-semibold text-violet-800" id="sign-cust-name">—</div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 font-semibold mb-1" for="sign-date-cust">Sign Date</label>
+        <input id="sign-date-cust" type="date"
+          class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:outline-none focus:border-violet-400 focus:bg-white transition-all"/>
+      </div>
+    </div>
+
+    <!-- Signature canvas -->
+    <div class="border-2 border-dashed border-violet-200 rounded-xl overflow-hidden bg-violet-50 relative" style="height:160px;">
+      <canvas id="canvas-cust" width="600" height="160" class="w-full h-full touch-none cursor-crosshair"></canvas>
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+        <span class="text-violet-400 text-sm font-medium">Sign here</span>
+      </div>
+      <button type="button" onclick="clearCanvas('canvas-cust')"
+        class="absolute top-2 right-2 text-xs text-gray-400 hover:text-red-500 bg-white border border-gray-200 rounded-lg px-2 py-1 transition-all pointer-events-auto z-10">Clear</button>
+    </div>
+    <p class="error-msg text-xs text-red-500 mt-2 hidden" id="err-custsign">Customer signature is required</p>
+  </div>
+
+  <div class="flex justify-between step-nav">
+    <button type="button" onclick="goStep(5)" class="bg-white hover:bg-gray-50 text-gray-600 text-sm font-semibold px-5 py-3 rounded-xl border border-gray-200 shadow-sm transition-all flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>Back</button>
+    <button type="submit" id="submit-btn"
+      class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white text-sm font-bold px-8 py-3 rounded-xl shadow-lg shadow-violet-200 transition-all flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+      Submit to SAP
+    </button>
+  </div>
+</section>
+
+</form>
+</main>
+
+<!-- ═══ JSON MODAL ════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="json-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between p-4 border-b border-indigo-900">
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+        <span class="ml-3 text-xs text-indigo-300 font-mono">SAP_PAYLOAD.json</span>
+      </div>
+      <button onclick="document.getElementById('json-modal').classList.add('hidden')" class="text-indigo-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <pre class="p-4 text-xs leading-relaxed font-mono overflow-x-auto text-slate-200 max-h-[60vh] overflow-y-auto" id="json-content"></pre>
+    <div class="px-4 pb-4 flex gap-2">
+      <button onclick="copyJson()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy
+      </button>
+      <button onclick="document.getElementById('json-modal').classList.add('hidden')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold py-2.5 rounded-xl transition-all">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ══════════════════════════════════════════════ -->
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden">
+  <div class="bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-sm font-medium min-w-[240px] justify-center">
+    <span id="toast-icon"></span><span id="toast-msg"></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  JAVASCRIPT                                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<script>
+// ── DATA ─────────────────────────────────────────────────────
+const CUSTOMERS = [
+{id:'CD2026-00273',name:'Dermoris Aesthetic',code:'CD2026-00273',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2026-00239',name:'Jolyn Clinic',code:'CD2026-00239',city:'กรุงเทพมหานคร',phone:'062-9296962'},
+{id:'CD2026-00210',name:'Mantra Clinic นครพนม',code:'CD2026-00210',city:'จังหวัดนครพนม',phone:'064-6623636'},
+{id:'CD2026-00200',name:'Rayne clinic',code:'CD2026-00200',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2026-00126',name:'Dr.Lock Clinic',code:'CD2026-00126',city:'จังหวัดนครราชสีมา',phone:'084-1964598'},
+{id:'CD2026-00111',name:'Orathai Clinic',code:'CD2026-00111',city:'จังหวัดนครศรีธรรมราช',phone:'089-9718058'},
+{id:'CD2026-00058',name:'LUME Wellness Clinic',code:'CD2026-00058',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2026-00036',name:'At Home Clinic',code:'CD2026-00036',city:'จังหวัดชลบุรี',phone:'0800636333'},
+{id:'CD2025-00881',name:'Dr.KONG',code:'CD2025-00881',city:'ระยอง',phone:'0822536999'},
+{id:'CD2025-00875',name:'นวล คลินิกเวชกรรม',code:'CD2025-00875',city:'จังหวัดจันทบุรี',phone:'089-7181111'},
+{id:'CD2025-00865',name:'The Glory Clinic',code:'CD2025-00865',city:'จังหวัดสุราษฎร์ธานี',phone:'099-328-9498'},
+{id:'CD2025-00863',name:'The Time Machine Clinic',code:'CD2025-00863',city:'กรุงเทพมหานคร',phone:'061-2699039'},
+{id:'CD2025-00850',name:'Because Clinic',code:'CD2025-00850',city:'กรุงเทพมหานคร',phone:'080-9879996'},
+{id:'CD2025-00830',name:'Oops Clinic',code:'CD2025-00830',city:'จังหวัดชลบุรี',phone:'063-2454614'},
+{id:'CD2025-00828',name:'Indeed Clinic',code:'CD2025-00828',city:'กรุงเทพมหานคร',phone:'086-3673702'},
+{id:'CD2025-00784',name:'Pimkul Clinic',code:'CD2025-00784',city:'จังหวัดกรุงเทพมหานคร',phone:'0914143923'},
+{id:'CD2025-00780',name:'Dr.Deaw Clinic',code:'CD2025-00780',city:'จังหวัดพระนครศรีอยุธยา',phone:'0894980824'},
+{id:'CD2025-00771',name:'HOVIA Clinic',code:'CD2025-00771',city:'กรุงเทพมหานคร',phone:'094-9535155'},
+{id:'CD2025-00766',name:'The Grand Clinic',code:'CD2025-00766',city:'กรุงเทพมหานคร',phone:'0648859030'},
+{id:'CD2025-00762',name:'Raksavee Clinic',code:'CD2025-00762',city:'จังหวัดกรุงเทพมหานคร',phone:'0966289392'},
+{id:'CD2025-00759',name:'Ozona Wellness Clinic',code:'CD2025-00759',city:'จังหวัดชุมพร',phone:'088-7513543'},
+{id:'CD2025-00758',name:'Monchai Clinic',code:'CD2025-00758',city:'จังหวัดบุรีรัมย์',phone:'092-8935956'},
+{id:'CD2025-00719',name:'Sol. wellness clinic',code:'CD2025-00719',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2025-00661',name:'KVK@Siam Clinic',code:'CD2025-00661',city:'กรุงเทพมหานคร',phone:'095-7915444'},
+{id:'CD2025-00660',name:'Anjali Clinic',code:'CD2025-00660',city:'จังหวัดปทุมธานี',phone:''},
+{id:'CD2025-00656',name:'Bangmod Hospital',code:'CD2025-00656',city:'กรุงเทพมหานคร',phone:'0-2867-0606'},
+{id:'CD2025-00653',name:'Begift Clinic',code:'CD2025-00653',city:'จังหวัดภูเก็ต',phone:'062-9195914'},
+{id:'CD2025-00630',name:'Diora Clinic สาขาจันทบุรี',code:'CD2025-00630',city:'จังหวัดจันทบุรี',phone:'095-4746246'},
+{id:'CD2025-00626',name:'Mystique Vive Clinic',code:'CD2025-00626',city:'ภูเก็ต',phone:'087-6246985'},
+{id:'CD2025-00605',name:'The Aestheny Clinic',code:'CD2025-00605',city:'จังหวัดสุราษฎร์ธานี',phone:'062-6956956'},
+{id:'CD2025-00591',name:'The Timeless Clinic',code:'CD2025-00591',city:'กรุงเทพมหานคร',phone:'0624416695'},
+{id:'CD2025-00557',name:'Aestima Clinic',code:'CD2025-00557',city:'กรุงเทพมหานคร',phone:'099-105-5550'},
+{id:'CD2025-00540',name:'Amenla Clinic',code:'CD2025-00540',city:'',phone:'0928899148'},
+{id:'CD2025-00539',name:'MSPA International',code:'CD2025-00539',city:'กรุงเทพมหานคร',phone:'0614201134'},
+{id:'CD2025-00529',name:'Phuket Detox Beauty Clinic',code:'CD2025-00529',city:'จังหวัดภูเก็ต',phone:'076-523353'},
+{id:'CD2025-00527',name:'Trinity Clinic สมุย',code:'CD2025-00527',city:'จังหวัดสุราษฎร์ธานี',phone:'092-3918811'},
+{id:'CD2025-00520',name:'Dr.Mew Clinic',code:'CD2025-00520',city:'จังหวัดนราธิวาส',phone:'093-4546351'},
+{id:'CD2025-00508',name:'RYN clinic',code:'CD2025-00508',city:'จังหวัดสมุทรปราการ',phone:'06-2645-6565'},
+{id:'CD2025-00501',name:'K2R Luxury Clinic',code:'CD2025-00501',city:'กรุงเทพมหานคร',phone:'061-6239529'},
+{id:'CD2025-00480',name:'Haus Clinic',code:'CD2025-00480',city:'จังหวัดนนทบุรี',phone:''},
+{id:'CD2025-00476',name:'Dermaplus Clinic',code:'CD2025-00476',city:'จังหวัดภูเก็ต',phone:'087-4941115'},
+{id:'CD2025-00474',name:'BKK Beauty Club Clinic',code:'CD2025-00474',city:'จังหวัดกรุงเทพมหานคร',phone:'061-5452444'},
+{id:'CD2025-00395',name:'Bangkok Genesis Clinic',code:'CD2025-00395',city:'จังหวัดนนทบุรี',phone:'081-6393651'},
+{id:'CD2025-00392',name:'AYC Wellness Clinic',code:'CD2025-00392',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2025-00345',name:'The Commons Clinic',code:'CD2025-00345',city:'จังหวัดกรุงเทพมหานคร',phone:'080-8989636'},
+{id:'CD2025-00338',name:'The Astell Clinic',code:'CD2025-00338',city:'กรุงเทพมหานคร',phone:'062-626-1788'},
+{id:'CD2025-00311',name:'Artistry Clinic by Khempitak',code:'CD2025-00311',city:'จังหวัดสมุทรปราการ',phone:'065-9597215'},
+{id:'CD2025-00304',name:'Merah Clinic',code:'CD2025-00304',city:'กรุงเทพมหานคร',phone:'063-5359566'},
+{id:'CD2025-00302',name:'Chompoonut Clinic (คลินิกผิวหนังหมอชมพูนุท)',code:'CD2025-00302',city:'จังหวัดนครปฐม',phone:'086-5681330'},
+{id:'CD2025-00297',name:'Quinns Clinic',code:'CD2025-00297',city:'',phone:'084-3488216'},
+{id:'CD2025-00255',name:'22 Square Clinic',code:'CD2025-00255',city:'กรุงเทพมหานคร',phone:'081-6296316'},
+{id:'CD2025-00230',name:'Zeniq Holistic Clinic',code:'CD2025-00230',city:'กรุงเทพมหานคร',phone:'081-377-2811'},
+{id:'CD2025-00222',name:'Dr.S Aesthetic and wellness Clinic',code:'CD2025-00222',city:'จังหวัดนนทบุรี',phone:''},
+{id:'CD2025-00203',name:'Beautier Clinic',code:'CD2025-00203',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2025-00201',name:'Facial Studio Clinic',code:'CD2025-00201',city:'จังหวัดมหาสารคาม',phone:'094-1536864'},
+{id:'CD2025-00197',name:'Dr.Jate Clinic',code:'CD2025-00197',city:'จังหวัดศรีสะเกษ',phone:'094-6503369'},
+{id:'CD2025-00176',name:'Dr.jun clinic',code:'CD2025-00176',city:'จังหวัดเชียงใหม่',phone:'0840427654'},
+{id:'CD2025-00173',name:'Amara Clinic & Doctor Mek Clinic',code:'CD2025-00173',city:'กรุงเทพฯ',phone:'06-44455666'},
+{id:'CD2025-00147',name:'Niche Aesthetics',code:'CD2025-00147',city:'กรุงเทพมหานคร',phone:'095-2619595'},
+{id:'CD2025-00131',name:'Jivani Clinic',code:'CD2025-00131',city:'กรุงเทพมหานคร',phone:'096-0906895'},
+{id:'CD2025-00095',name:'Advance Clinic',code:'CD2025-00095',city:'กรุงเทพมหานคร',phone:'02-6934424'},
+{id:'CD2025-00073',name:'Artistic Clinic',code:'CD2025-00073',city:'จังหวัดกรุงเทพมหานคร',phone:'090-9264556'},
+{id:'CD2025-00067',name:'R Plus Clinic',code:'CD2025-00067',city:'กรุงเทพฯ',phone:'083-6000660'},
+{id:'CD2025-00034',name:'Derma Privet Clinic',code:'CD2025-00034',city:'จังหวัดตรัง',phone:'093-3644694'},
+{id:'CD2024-01127',name:'Supa-Kunn Clinic',code:'CD2024-01127',city:'กรุงเทพมหานคร',phone:'063-3593663'},
+{id:'CD2024-01122',name:'Mio Clinic',code:'CD2024-01122',city:'กรุงเทพฯ',phone:'089-6990884'},
+{id:'CD2024-01111',name:'Bangkok regenerative aesthetic clinic (BRAC Clinic)',code:'CD2024-01111',city:'จังหวัดกรุงเทพมหานคร',phone:'098-8964455'},
+{id:'CD2024-01099',name:'IONA Clinic',code:'CD2024-01099',city:'จังหวัดกรุงเทพมหานคร',phone:'080-1419888'},
+{id:'CD2024-01082',name:'The Bloom Clinic',code:'CD2024-01082',city:'จังหวัดอุบลราชธานี',phone:'091-0192896'},
+{id:'CD2024-01067',name:'The standard clinic',code:'CD2024-01067',city:'',phone:''},
+{id:'CD2024-01064',name:'Juno Clinic บุรีรัมย์',code:'CD2024-01064',city:'จังหวัดบุรีรัมย์ 31000',phone:'093-615-1989'},
+{id:'CD2024-01060',name:'Dr.Tom Kambhu Clinic',code:'CD2024-01060',city:'จังหวัดสุราษฎร์ธานี',phone:'083-077-0990'},
+{id:'CD2024-01049',name:'Private54 Clinic',code:'CD2024-01049',city:'จังหวัดนครราชสีมา',phone:'080-3339196'},
+{id:'CD2024-01048',name:'Standard Skin Clinic',code:'CD2024-01048',city:'กรุงเทพ',phone:'065-782-6466'},
+{id:'CD2024-01021',name:'Entrio Clinic',code:'CD2024-01021',city:'จังหวัดกรุงเทพมหานคร',phone:'097-1542222'},
+{id:'CD2024-00957',name:'Michiko Clinic',code:'CD2024-00957',city:'กรุงเทพมหานคร',phone:'095-461-5442'},
+{id:'CD2024-00946',name:'Lumine clinic',code:'CD2024-00946',city:'กรุงเทพมหานคร',phone:'094-161-4256'},
+{id:'CD2024-00931',name:'Solisse Clinic',code:'CD2024-00931',city:'กรุงเทพฯ',phone:'081-8884496'},
+{id:'CD2024-00930',name:'Myra Clinic',code:'CD2024-00930',city:'จังหวัดบุรีรัมย์',phone:'093-3255703'},
+{id:'CD2024-00928',name:'Chance Wellness Clinic',code:'CD2024-00928',city:'กรุงเทพมหานคร',phone:'097-1939286'},
+{id:'CD2024-00924',name:'A Peach Clinic',code:'CD2024-00924',city:'จังหวัดอุดรธานี',phone:'081-6964641'},
+{id:'CD2024-00896',name:'Kojic Clinic',code:'CD2024-00896',city:'จังหวัดสมุทรสาคร',phone:'096-3593666'},
+{id:'CD2024-00893',name:'POSH Aesthetic Clinic',code:'CD2024-00893',city:'จังหวัดกาญจนบุรี',phone:'096-5653354'},
+{id:'CD2024-00892',name:'DETOXEA CO.,LTD',code:'CD2024-00892',city:'Phuket Province ,',phone:'062-929-9627'},
+{id:'CD2024-00871',name:'PJ Clinic',code:'CD2024-00871',city:'',phone:'095-2135717'},
+{id:'CD2024-00864',name:'Chamnan Clinic',code:'CD2024-00864',city:'จังหวัดกรุงเทพมหานคร',phone:'064-5696656'},
+{id:'CD2024-00853',name:'Aman Medical Spa (Thailand) Co.,Ltd.',code:'CD2024-00853',city:'Phuket',phone:'094-594-9895'},
+{id:'CD2024-00814',name:'Doctor Order Clinic ขอนแก่น',code:'CD2024-00814',city:'จังหวัดขอนแก่น',phone:'083-2659899'},
+{id:'CD2024-00770',name:'SKYN Station Clinic',code:'CD2024-00770',city:'จังหวัดกรุงเทพมหานคร',phone:'099-6151599'},
+{id:'CD2024-00681',name:'Soleil Clinic',code:'CD2024-00681',city:'จังหวัดกรุงเทพมหานคร',phone:'0625296434'},
+{id:'CD2024-00667',name:'Sutthisak Clinic',code:'CD2024-00667',city:'จังหวัดภูเก็ต',phone:'0874787589'},
+{id:'CD2024-00649',name:'We R Clinic',code:'CD2024-00649',city:'จังหวัดกาฬสินธุ์',phone:'084-2422694'},
+{id:'CD2024-00648',name:'Dr.Boss Clinic',code:'CD2024-00648',city:'จังหวัดกาฬสินธุ์',phone:'096-6464165'},
+{id:'CD2024-00634',name:'FOR DERM clinic',code:'CD2024-00634',city:'ตรัง',phone:'0894722334'},
+{id:'CD2024-00618',name:'Lyft Clinic',code:'CD2024-00618',city:'จังหวัดชลบุรี',phone:'088-8844699'},
+{id:'CD2024-00601',name:'Yuubi Clinic',code:'CD2024-00601',city:'กรุงเทพมหานคร',phone:'099-6622636'},
+{id:'CD2024-00506',name:'The After Clinic (บุรีรัมย์)',code:'CD2024-00506',city:'บุรีรัมย์',phone:'06-37535394'},
+{id:'CD2024-00504',name:'Eleva Clinic',code:'CD2024-00504',city:'กรุงเทพฯ',phone:'098-9941698'},
+{id:'CD2024-00491',name:'The Glow Clinic',code:'CD2024-00491',city:'กรุงเทพมหานคร',phone:'0907993888'},
+{id:'CD2024-00486',name:'The Moon Aura Clinic',code:'CD2024-00486',city:'จังหวัดนครปฐม',phone:'096-3569-365'},
+{id:'CD2024-00484',name:'Nano Clinic',code:'CD2024-00484',city:'กรุงเทพฯ',phone:'0840874080'},
+{id:'CD2024-00470',name:'Babyface Clinic',code:'CD2024-00470',city:'กรุงเทพมหานคร',phone:'086-6323222'},
+{id:'CD2024-00424',name:'Hana Clinic by Dr. Great',code:'CD2024-00424',city:'จังหวัดสระแก้ว',phone:'096-8608728'},
+{id:'CD2024-00422',name:'Lucrecia clinic(สาขาราชพฤกษ์)',code:'CD2024-00422',city:'',phone:'0925654478'},
+{id:'CD2024-00387',name:'หมอเซฟ นครพนม',code:'CD2024-00387',city:'นครพนม',phone:'089-1090780'},
+{id:'CD2024-00317',name:'Mellow clinic',code:'CD2024-00317',city:'กรุงเทพมหานคร',phone:'062 696 5391'},
+{id:'CD2024-00249',name:'The Space Aesthetics',code:'CD2024-00249',city:'กรุงเทพมหานคร',phone:'063-2362888'},
+{id:'CD2024-00248',name:'LS Clinic',code:'CD2024-00248',city:'จังหวัดอุดรธานี',phone:'090-6159966'},
+{id:'CD2024-00238',name:'Spring Clinic',code:'CD2024-00238',city:'กรุงเทพฯ',phone:'083-0709888'},
+{id:'CD2024-00183',name:'Cine clinic',code:'CD2024-00183',city:'จังหวัดกรุงเทพมหานคร',phone:''},
+{id:'CD2024-00180',name:'Dr.Orawan Medical Center',code:'CD2024-00180',city:'กรุงเทพมหานคร',phone:'061-6562395'},
+{id:'CD2024-00175',name:'P Face Clinic',code:'CD2024-00175',city:'จังหวัดสงขลา',phone:''},
+{id:'CD2024-00159',name:'Kitiya Clinic',code:'CD2024-00159',city:'',phone:'089 392 6641'},
+{id:'CD2024-00154',name:'Wanvera Wellness Clinic',code:'CD2024-00154',city:'กรุงเทพฯ',phone:'081-372-5959'},
+{id:'CD2024-00153',name:'Eminence Clinic',code:'CD2024-00153',city:'กรุงเทพมหานคร',phone:'081-4304495'},
+{id:'CD2024-00134',name:'Doctor yong Clinic เชียงราย',code:'CD2024-00134',city:'',phone:''},
+{id:'CD2024-00041',name:'Dermhouse Clinic',code:'CD2024-00041',city:'กรุงเทพมหานคร',phone:'086-7727408'},
+{id:'CD2024-00032',name:'REBO wellness studio',code:'CD2024-00032',city:'กรุงเทพมหานคร',phone:'096-1456888'},
+{id:'CD2024-00012',name:'aesthetic clinic tak',code:'CD2024-00012',city:'จังหวัดตาก',phone:'081-8867014'},
+{id:'CD2024-00003',name:'Mandarin Oriental Bangkok',code:'CD2024-00003',city:'Bangkok',phone:'02-659-0481'},
+{id:'CD2024',name:'STC Clinic',code:'CD2024',city:'กรุงเทพมหานคร',phone:'02 060 2499'},
+{id:'CD2023-24199',name:'Niran Clinic',code:'CD2023-24199',city:'จังหวัดนครสวรรค์',phone:'086-3627710'},
+{id:'CD2023-24112',name:'Avocado Clinic (DRC Clinic)',code:'CD2023-24112',city:'สมุทรปราการ',phone:'064-6193615'},
+{id:'CD2023-23390',name:'Kanwera clinic',code:'CD2023-23390',city:'จังหวัดนนทบุรี',phone:'081-5593699'},
+{id:'CD2023-22186',name:'Parnsiri Clinic',code:'CD2023-22186',city:'จังหวัดนครราชสีมา',phone:'0969151695'},
+{id:'CD2023-22104',name:'The vanish clinic',code:'CD2023-22104',city:'กรุงเทพมหานคร',phone:'0914263624'},
+{id:'CD2023-22060',name:'Cheva Clinic',code:'CD2023-22060',city:'กรุงเทพมหานคร',phone:'096-9429494'},
+{id:'CD2023-22057',name:'Pearpaul clinic',code:'CD2023-22057',city:'จังหวัดร้อยเอ็ด',phone:'66632566524'},
+{id:'CD2023-21713',name:'Wattanarak Laser and Skin Clinic',code:'CD2023-21713',city:'กรุงเทพมหานคร',phone:'02-6320888'},
+{id:'CD2023-21616',name:'LEIA Clinic',code:'CD2023-21616',city:'กรุงเทพมหานคร',phone:'082-6364445'},
+{id:'CD2023-21192',name:'Doctor Yada Clinic',code:'CD2023-21192',city:'จังหวัดชลบุรี',phone:'061-8407007'},
+{id:'CD2023-21120',name:'Waanwaan Clinic',code:'CD2023-21120',city:'จังหวัดระยอง',phone:'093-4542652'},
+{id:'CD2023-20905',name:'Le Lys Clinic by Dr. janiie',code:'CD2023-20905',city:'กรุงเทพมหานคร',phone:'064-2456429'},
+{id:'CD2023-20898',name:'JINS Clinic',code:'CD2023-20898',city:'จังหวัดชลบุรี',phone:'66641500649'},
+{id:'CD2023-20867',name:'Kalm Clinic',code:'CD2023-20867',city:'กรุงเทพมหานคร',phone:'02-1214144'},
+{id:'CD2023-20834',name:'Nirvana Clinic',code:'CD2023-20834',city:'จังหวัดชลบุรี',phone:'66640686429'},
+{id:'CD2023-20759',name:'Seoul clinic',code:'CD2023-20759',city:'จังหวัดชลบุรี',phone:'0982637757'},
+{id:'CD2023-20739',name:'Chana clinic',code:'CD2023-20739',city:'จังหวัดกรุงเทพมหานคร',phone:'0636966165'},
+{id:'CD2023-20644',name:'Melamoon Clinic',code:'CD2023-20644',city:'จังหวัดนนทบุรี',phone:'092-6217555'},
+{id:'CD2023-20547',name:'TC Clinic',code:'CD2023-20547',city:'จังหวัดกรุงเทพมหานคร',phone:'0942917257'},
+{id:'CD2023-20537',name:'YKJ Medical clinic by Theerathorn',code:'CD2023-20537',city:'กรุงเทพมหานคร',phone:'6629807199'},
+{id:'CD2023-20483',name:'Pathamon Clinic',code:'CD2023-20483',city:'กรุงเทพมหานคร',phone:'089-7675167'},
+{id:'CD2023-20432',name:'Talisa Clinic',code:'CD2023-20432',city:'จังหวัดกรุงเทพมหานคร',phone:'085-0595767'},
+{id:'CD2023-20393',name:'Lotte Clinic',code:'CD2023-20393',city:'จังหวัดกรุงเทพมหานคร',phone:'0817520935'},
+{id:'CD2023-20349',name:'The East clinic',code:'CD2023-20349',city:'จังหวัดนนทบุรี',phone:'0934493693'},
+{id:'CD2023-20335',name:'The Art Clinic',code:'CD2023-20335',city:'กรุงเทพมหานคร',phone:'6629394998'},
+{id:'CD2023-20202',name:'Natchanok Clinic',code:'CD2023-20202',city:'กรุงเทพมหานคร',phone:'02-51366479'},
+{id:'CD2023-01556',name:'Chanisa Cosmetic Clinic',code:'CD2023-01556',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-01550',name:'คลินิกเวชกรรมวีแคร์ สาขามหาสารคาม',code:'CD2023-01550',city:'จังหวัดมหาสารคาม',phone:'097-3019327'},
+{id:'CD2023-01543',name:'Smooth clinic',code:'CD2023-01543',city:'จังหวัดกรุงเทพมหานคร',phone:'0881218888'},
+{id:'CD2023-01532',name:'Parfait Clinic',code:'CD2023-01532',city:'กรุงเทพฯ',phone:'086-1263000'},
+{id:'CD2023-01517',name:'คลินิกผิวหนังและเส้นผมหมอภาสินี',code:'CD2023-01517',city:'จังหวัดสงขลา',phone:'099-2497997'},
+{id:'CD2023-01505',name:'De Fleur Clinic by Dr.Aoey',code:'CD2023-01505',city:'ปทุมธานี',phone:'065 883 9641'},
+{id:'CD2023-01493',name:'AMS Clinic Udon',code:'CD2023-01493',city:'จังหวัดอุดรธานี',phone:'061-1425936'},
+{id:'CD2023-01458',name:'Anantara Layan Phuket Resort',code:'CD2023-01458',city:'',phone:''},
+{id:'CD2023-01437',name:'Paragon Clinic',code:'CD2023-01437',city:'จังหวัดอุตรดิตถ์',phone:'099-632-5144'},
+{id:'CD2023-01406',name:'RGN Clinic (อาร์จีเอ็นคลินิกเวชกรรม)',code:'CD2023-01406',city:'กรุงเทพมหานคร',phone:'086-4600141'},
+{id:'CD2023-01375',name:'โรงพยาบาลหัวเฉียว',code:'CD2023-01375',city:'',phone:'0982602292'},
+{id:'CD2023-01372',name:'Loft Thai Spa & Massage',code:'CD2023-01372',city:'กรุงเทพมหานคร',phone:'063 487 2308'},
+{id:'CD2023-01371',name:'Natur Clinic',code:'CD2023-01371',city:'จังหวัดบุรีรัมย์',phone:'087-3550502'},
+{id:'CD2023-01370',name:'Dr.Fon Clinic',code:'CD2023-01370',city:'จังหวัดสงขลา',phone:'062-2989465'},
+{id:'CD2023-01369',name:'Proove Clinic',code:'CD2023-01369',city:'กรุงเทพฯ',phone:'064-4411156'},
+{id:'CD2023-01368',name:'Mediva Clinic',code:'CD2023-01368',city:'กรุงเทพฯ',phone:'064-2456000'},
+{id:'CD2023-01366',name:'Anantara Riverside Bangkok',code:'CD2023-01366',city:'Bangkok',phone:''},
+{id:'CD2023-01360',name:'Star Med Clinic',code:'CD2023-01360',city:'กรุงเทพฯ',phone:'02-0191919'},
+{id:'CD2023-01357',name:'Claire wellness clinic (Roi-Et)',code:'CD2023-01357',city:'จังหวัดร้อยเอ็ด',phone:'0644141929'},
+{id:'CD2023-01355',name:'ณธีคลินิกเวชกรรม สาขาจรัญฯ',code:'CD2023-01355',city:'',phone:'061-538-8893'},
+{id:'CD2023-01354',name:'Veneta Clinic',code:'CD2023-01354',city:'จังหวัดอุตรดิตถ์',phone:'062-8292254'},
+{id:'CD2023-01344',name:'IDL Hospital',code:'CD2023-01344',city:'กรุงเทพมหานคร',phone:'061-8696666'},
+{id:'CD2023-01331',name:'โรงพยาบาลไทยจักษุ',code:'CD2023-01331',city:'กรุงเทพมหานคร',phone:'02 689 8888'},
+{id:'CD2023-01322',name:'Miskawaan Health Group',code:'CD2023-01322',city:'จังหวัดสุราษฎร์ธานี',phone:''},
+{id:'CD2023-01306',name:'Derma P Clinic',code:'CD2023-01306',city:'จังหวัดปทุมธานี',phone:'086-0370999'},
+{id:'CD2023-01276',name:'Siriya clinic',code:'CD2023-01276',city:'จังหวัดนครนายก',phone:'037 349 844'},
+{id:'CD2023-01254',name:'Anjali Clinic',code:'CD2023-01254',city:'กรุงเทพมหานคร',phone:'02 096 5554'},
+{id:'CD2023-01247',name:'Arunya Clinic',code:'CD2023-01247',city:'จังหวัดสมุทรปราการ',phone:'082-4546353'},
+{id:'CD2023-01246',name:'PAC Skin and Laser Clinic',code:'CD2023-01246',city:'จังหวัดสมุทรปราการ',phone:'064-2299692'},
+{id:'CD2023-01237',name:'Remede Clinic',code:'CD2023-01237',city:'กรุงเทพมหานคร',phone:'061-6466459'},
+{id:'CD2023-01207',name:'Be Sisters Clinic (พิษณุโลก)',code:'CD2023-01207',city:'จ.พิษณุโลก',phone:'0942249692'},
+{id:'CD2023-01192',name:'Siam Clinic (สยามคลินิก) - Aesthetic and Wellness clinic',code:'CD2023-01192',city:'จังหวัดภูเก็ต',phone:'0947496666'},
+{id:'CD2023-01191',name:'NPC Clinic',code:'CD2023-01191',city:'ภูเก็ต',phone:'096-8900543'},
+{id:'CD2023-01170',name:'Nitipon Clinic',code:'CD2023-01170',city:'กรุงเทพมหานคร',phone:'02-7344125'},
+{id:'CD2023-01160',name:'Vachira Hospital',code:'CD2023-01160',city:'จังหวัดภูเก็ต',phone:'Line'},
+{id:'CD2023-01137',name:'ราชวิทยาลัยจุฬาภรณ์',code:'CD2023-01137',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-01135',name:'The Zenith Clinic',code:'CD2023-01135',city:'จังหวัดกรุงเทพมหานคร',phone:'097-1952922'},
+{id:'CD2023-01132',name:'Bara Clinic',code:'CD2023-01132',city:'จังหวัดฉะเชิงเทรา',phone:'098-0210888'},
+{id:'CD2023-01123',name:'Aileen clinic',code:'CD2023-01123',city:'จ.สระบุรี',phone:'096-4144929'},
+{id:'CD2023-01122',name:'Panpuri',code:'CD2023-01122',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-01104',name:'Together Clinic',code:'CD2023-01104',city:'จังหวัดเลย',phone:'096-3635595'},
+{id:'CD2023-01091',name:'Krista clinic',code:'CD2023-01091',city:'นครราชสีมา',phone:'066-082-2902'},
+{id:'CD2023-01076',name:'KTC Clinic',code:'CD2023-01076',city:'กรุงเทพฯ',phone:'096-9629297'},
+{id:'CD2023-00999',name:'Tana Clinic',code:'CD2023-00999',city:'จังหวัดราชบุรี',phone:'032-210599'},
+{id:'CD2023-00997',name:'Dr.Prem Clinic',code:'CD2023-00997',city:'กรุงเทพมหานคร',phone:'096-8299445'},
+{id:'CD2023-00966',name:'Attitude clinic',code:'CD2023-00966',city:'จังหวัดเชียงใหม่',phone:'099-2241000'},
+{id:'CD2023-00936',name:'The Totale Clinic',code:'CD2023-00936',city:'กรุงเทพมหานคร',phone:'090-0269555'},
+{id:'CD2023-00909',name:'Rainnie Clinic',code:'CD2023-00909',city:'จังหวัดนครปฐม',phone:'065-9639742'},
+{id:'CD2023-00908',name:'EY Clinic',code:'CD2023-00908',city:'จังหวัดสมุทรปราการ',phone:'02-2359656'},
+{id:'CD2023-00905',name:'Mi-a Clinic เชียงใหม่',code:'CD2023-00905',city:'จังหวัดเชียงใหม่',phone:'082-6616691'},
+{id:'CD2023-00900',name:'Absolute by dr.tan Clinic (แอบโซลูท บาย หมอตาล)',code:'CD2023-00900',city:'จังหวัดพิษณุโลก',phone:'099-6142463'},
+{id:'CD2023-00894',name:'Rukx rayong Clinic',code:'CD2023-00894',city:'จังหวัดระยอง',phone:'086-8790055'},
+{id:'CD2023-00892',name:'V Square Clinic',code:'CD2023-00892',city:'กรุงเทพมหานคร',phone:'02-1293709'},
+{id:'CD2023-00885',name:'SKC clinic',code:'CD2023-00885',city:'สงขลา',phone:'0842363654'},
+{id:'CD2023-00882',name:'คลินิกหมอโยธิน',code:'CD2023-00882',city:'จังหวัดปัตตานี',phone:''},
+{id:'CD2023-00880',name:'Dr.Tom Kambhu Clinic',code:'CD2023-00880',city:'จังหวัดสุราษฎร์ธานี',phone:'083-077-0990'},
+{id:'CD2023-00879',name:'The Claire Clinic',code:'CD2023-00879',city:'จังหวัดสุราษฎร์ธานี',phone:'082-4594644'},
+{id:'CD2023-00863',name:'Anna Clinic (อันนา คลินิก)',code:'CD2023-00863',city:'',phone:''},
+{id:'CD2023-00847',name:'Pimphat Clinic',code:'CD2023-00847',city:'จังหวัดระยอง',phone:'095-9569796'},
+{id:'CD2023-00829',name:'Liv wellness clinic',code:'CD2023-00829',city:'จังหวัดชลบุรี',phone:''},
+{id:'CD2023-00820',name:'We wellness Clinic',code:'CD2023-00820',city:'จังหวัดกระบี่',phone:'080-5323559'},
+{id:'CD2023-00819',name:'SHN Health',code:'CD2023-00819',city:'จังหวัดสุราษฎร์ธานี',phone:'088-566-5936'},
+{id:'CD2023-00815',name:'Dr.PAT Clinic',code:'CD2023-00815',city:'จังหวัดภูเก็ต',phone:'076-530-150'},
+{id:'CD2023-00814',name:'BEHAP Wellness Clinic',code:'CD2023-00814',city:'จังหวัดกรุงเทพมหานคร',phone:'065-5464255'},
+{id:'CD2023-00811',name:'Fiora Clinic',code:'CD2023-00811',city:'จันทบุรี',phone:''},
+{id:'CD2023-00810',name:'Monika Clinic',code:'CD2023-00810',city:'Bangkok',phone:''},
+{id:'CD2023-00807',name:'โรงพยาบาลเซนต์หลุยส์',code:'CD2023-00807',city:'',phone:'028385555'},
+{id:'CD2023-00806',name:'ฉัตรธิดา คลินิก (Chatthida Clinic)',code:'CD2023-00806',city:'จังหวัดมหาสารคาม',phone:'081-4546519'},
+{id:'CD2023-00803',name:'Medileen Wellness Clinic',code:'CD2023-00803',city:'กรุงเทพมหานคร',phone:'02-5385616'},
+{id:'CD2023-00802',name:'Skin Solution Clinic คลินิกเฉพาะทางผิวหนัง พญ.กุลวดี',code:'CD2023-00802',city:'',phone:'081-8225991'},
+{id:'CD2023-00800',name:'Afterglow Clinic',code:'CD2023-00800',city:'',phone:''},
+{id:'CD2023-00799',name:'ลา ฟา มีเลีย คลินิค',code:'CD2023-00799',city:'',phone:'064-9426351'},
+{id:'CD2023-00798',name:'Dr.Pang Skin Clinic',code:'CD2023-00798',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00797',name:'Real clinic',code:'CD2023-00797',city:'',phone:''},
+{id:'CD2023-00795',name:'Tararin clinic',code:'CD2023-00795',city:'จังหวัดขอนแก่น',phone:'081-7080901'},
+{id:'CD2023-00794',name:'RIT clinic',code:'CD2023-00794',city:'จังหวัดขอนแก่น',phone:'083-1441125'},
+{id:'CD2023-00790',name:'Carissa Clinic',code:'CD2023-00790',city:'จังหวัดขอนแก่น',phone:'082-6639696'},
+{id:'CD2023-00789',name:'Bae Clinic',code:'CD2023-00789',city:'จังหวัดขอนแก่น',phone:'082 824 1561'},
+{id:'CD2023-00787',name:'Rebalance Clinic',code:'CD2023-00787',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00783',name:'Mortrust clinic',code:'CD2023-00783',city:'',phone:''},
+{id:'CD2023-00781',name:'Aes Class Clinic',code:'CD2023-00781',city:'',phone:''},
+{id:'CD2023-00780',name:'โรงพยาบาลจุฬาลงกรณ์',code:'CD2023-00780',city:'',phone:''},
+{id:'CD2023-00779',name:'โรงพยาบาลศิริราช ปิยมหาราชการุณย์',code:'CD2023-00779',city:'กรุงเทพมหานคร',phone:'02-4191474'},
+{id:'CD2023-00777',name:'Astrid anti-aging studio',code:'CD2023-00777',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00776',name:'AESsense Clinic',code:'CD2023-00776',city:'จังหวัดภูเก็ต',phone:'084-7215006'},
+{id:'CD2023-00774',name:'Sirintip Clinic',code:'CD2023-00774',city:'จังหวัดประจวบคีรีขันธ์',phone:'091-7463254'},
+{id:'CD2023-00773',name:'คลินิกผิวหนังแพทย์นิวัติ',code:'CD2023-00773',city:'',phone:'0815537928'},
+{id:'CD2023-00772',name:'สถาบันการแพทย์จักรีนฤบดินทร์ คณะแพทยศาสตร์โรงพยาบาลรามาธิบดี ม.มหิดล',code:'CD2023-00772',city:'จังหวัดสมุทรปราการ',phone:''},
+{id:'CD2023-00771',name:'Dr.minna clinic เชียงราย',code:'CD2023-00771',city:'จังหวังเชียงราย',phone:''},
+{id:'CD2023-00770',name:'Smith Privé Aesthetique clinic (สาขาสุขุมวิท49)',code:'CD2023-00770',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00769',name:'คลินิกผิวหนังหมอโปรดปราน',code:'CD2023-00769',city:'จังวัดจันทบุรี',phone:'039-321793'},
+{id:'CD2023-00764',name:'The Klass Clinic',code:'CD2023-00764',city:'กรุงเทพมหานคร',phone:'094-5691156'},
+{id:'CD2023-00762',name:'Sole Mio Boutique Hotel & Wellness',code:'CD2023-00762',city:'จังหวัดภูเก็ต',phone:''},
+{id:'CD2023-00761',name:'Plenary wellness',code:'CD2023-00761',city:'จังหวัดภูเก็ต',phone:''},
+{id:'CD2023-00757',name:'Dr.tip clinic สุโขทัย',code:'CD2023-00757',city:'จังหวัดพิษณุโลก',phone:''},
+{id:'CD2023-00756',name:'Peace Clinic พัทยา',code:'CD2023-00756',city:'จังหวัดชลบุรี',phone:''},
+{id:'CD2023-00755',name:'Nicha Clinic (สาขาเชียงใหม่)',code:'CD2023-00755',city:'จังหวัดเชียงใหม่',phone:''},
+{id:'CD2023-00754',name:'พีซ สหคลินิก ตาก',code:'CD2023-00754',city:'จังหวัดตาก',phone:'095-6345436'},
+{id:'CD2023-00751',name:'Onewan clinic by Dr. Fronk',code:'CD2023-00751',city:'จังหวัดบุรีรัมย์',phone:'062-2468168'},
+{id:'CD2023-00750',name:'EverySkin Clinic (บางนา)',code:'CD2023-00750',city:'กรุงเทพฯ',phone:''},
+{id:'CD2023-00749',name:'Time Square Clinic',code:'CD2023-00749',city:'จ.สมุทรสาคร',phone:''},
+{id:'CD2023-00715',name:'Temsiri Clinic',code:'CD2023-00715',city:'จังหวัดนครสวรรค์',phone:''},
+{id:'CD2023-00712',name:'สถาบันโรคผิวหนัง',code:'CD2023-00712',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00704',name:'มหาวิทยาลัยมหิดล (คณะแพทยศาสตร์ศิริราชพยาบาล)',code:'CD2023-00704',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00681',name:'Hello Clinic',code:'CD2023-00681',city:'กรุงเทพ',phone:'062-9295499'},
+{id:'CD2023-00662',name:'Alfar Ville Clinic',code:'CD2023-00662',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00657',name:'Baan Dr.fruit clinic',code:'CD2023-00657',city:'จังหวัดนนทบุรี',phone:'087-155-9989'},
+{id:'CD2023-00652',name:'Morying Clinic',code:'CD2023-00652',city:'จังหวัดเชียงใหม่',phone:''},
+{id:'CD2023-00651',name:'Piyaporn Clinic',code:'CD2023-00651',city:'จังหวัดสงขลา',phone:''},
+{id:'CD2023-00650',name:'Peach Clinic',code:'CD2023-00650',city:'จังหวัดเชียงใหม่',phone:''},
+{id:'CD2023-00648',name:'โรงพยาบาลสิริเวช',code:'CD2023-00648',city:'จังหวัดจันทบุรี',phone:''},
+{id:'CD2023-00647',name:'Siraikorn Clinic',code:'CD2023-00647',city:'กรุงเทพมหานคร',phone:'086-5656989'},
+{id:'CD2023-00643',name:'Marrakesh holistic clinic',code:'CD2023-00643',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00640',name:'Smith Privé Aesthetique clinic',code:'CD2023-00640',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00637',name:'S-Mart Clinic',code:'CD2023-00637',city:'กรุงเทพทหานคร',phone:''},
+{id:'CD2023-00629',name:'Skinity Clinic',code:'CD2023-00629',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00612',name:'V Plus Clinic',code:'CD2023-00612',city:'จังหวัดขอนแก่น',phone:'096-9965707'},
+{id:'CD2023-00597',name:'Wand Wood Clinic',code:'CD2023-00597',city:'จังหวัดนครรราชสีมา',phone:''},
+{id:'CD2023-00592',name:'Lumilux Clinic',code:'CD2023-00592',city:'กรุงเทพมหานคร',phone:'086-6221000'},
+{id:'CD2023-00591',name:'Lienjang Clinic',code:'CD2023-00591',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00587',name:'Laferly Clinic',code:'CD2023-00587',city:'กรุงเทพมหานคร',phone:'064-695-9555'},
+{id:'CD2023-00585',name:'LushWood Clinic',code:'CD2023-00585',city:'จังหวัดภูเก็ต',phone:''},
+{id:'CD2023-00584',name:'Pangram Clinic',code:'CD2023-00584',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00573',name:'Ralph Clinic',code:'CD2023-00573',city:'จังหวัดนครราชสีมา',phone:''},
+{id:'CD2023-00567',name:'Youthivate Clinic',code:'CD2023-00567',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00565',name:'Wind Clinic',code:'CD2023-00565',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00562',name:'The Sky Clinic',code:'CD2023-00562',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00547',name:'Fiora Clinic',code:'CD2023-00547',city:'',phone:''},
+{id:'CD2023-00542',name:'Bella vita integrative medicine center',code:'CD2023-00542',city:'จังหวัดสงขลา',phone:'074223942'},
+{id:'CD2023-00540',name:'Meko International Hospital',code:'CD2023-00540',city:'กรุงเทพมหานคร',phone:'02-272-0022'},
+{id:'CD2023-00522',name:'พราว คลินิกเวชกรรม',code:'CD2023-00522',city:'จังหวัดเชียงใหม่',phone:'084-6951452'},
+{id:'CD2023-00508',name:'Immagini',code:'CD2023-00508',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00504',name:'Immagini',code:'CD2023-00504',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00500',name:'La Claire Clinic',code:'CD2023-00500',city:'กรุงเทพมหานคร',phone:'02-0909545'},
+{id:'CD2023-00498',name:'โรงพยาบาลเกษมราษฎร์ ประชาชื่น',code:'CD2023-00498',city:'เขตกรุงเทพ',phone:''},
+{id:'CD2023-00496',name:'Patcharavej Clinic',code:'CD2023-00496',city:'จังหวัดนนทบุรี',phone:''},
+{id:'CD2023-00477',name:'Thaniya Medical Clinic',code:'CD2023-00477',city:'กรุงเทพมหานคร',phone:'02-2312100'},
+{id:'CD2023-00474',name:'MedPark Hospital',code:'CD2023-00474',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00465',name:'Thorfun Clinic',code:'CD2023-00465',city:'จังหวัดเชียงใหม่',phone:''},
+{id:'CD2023-00447',name:'Solne Clinic',code:'CD2023-00447',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00440',name:'Patcha Clinic',code:'CD2023-00440',city:'',phone:''},
+{id:'CD2023-00439',name:'Dr.Aomthong Clinic',code:'CD2023-00439',city:'จังหวัดนนทบุรี',phone:''},
+{id:'CD2023-00437',name:'Doctor Farm Clinic',code:'CD2023-00437',city:'จังหวัดนครสวรรค์',phone:''},
+{id:'CD2023-00436',name:'Dr.jun clinic',code:'CD2023-00436',city:'จังหวัดเชียงใหม่',phone:''},
+{id:'CD2023-00434',name:'DOCTOR R Clinic',code:'CD2023-00434',city:'',phone:''},
+{id:'CD2023-00431',name:'Dr.Non Clinic',code:'CD2023-00431',city:'จังหวัดระยอง',phone:''},
+{id:'CD2023-00430',name:'Dr.Oh Clinic',code:'CD2023-00430',city:'จังหวัดน่าน',phone:''},
+{id:'CD2023-00427',name:'Drema Aesthetics & Laser Clinic',code:'CD2023-00427',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00417',name:'Summer Face And Body Clinic',code:'CD2023-00417',city:'จังหวัดภูเก็ต',phone:''},
+{id:'CD2023-00414',name:'Chalita Clinic',code:'CD2023-00414',city:'จังหวัดอุบลราชธานี',phone:''},
+{id:'CD2023-00407',name:'Bellalio Clinic',code:'CD2023-00407',city:'',phone:''},
+{id:'CD2023-00404',name:'The Signature Clinic',code:'CD2023-00404',city:'จังหวัดสมุทรสาคร',phone:'081-816-3366'},
+{id:'CD2023-00397',name:'Classy Clinic',code:'CD2023-00397',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00396',name:'Khongkwan clinic',code:'CD2023-00396',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00392',name:'Wild Clinic and Natural Treat',code:'CD2023-00392',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00387',name:'Kritthada Clinic',code:'CD2023-00387',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00386',name:'Kanokon clinic',code:'CD2023-00386',city:'จังหวัดจันทบุรี',phone:''},
+{id:'CD2023-00385',name:'iSKY Center',code:'CD2023-00385',city:'กรุงเทพฯ',phone:''},
+{id:'CD2023-00381',name:'Identity Medical Center',code:'CD2023-00381',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00371',name:'Lumina clinic',code:'CD2023-00371',city:'จังหวัดเชียงใหม่',phone:''},
+{id:'CD2023-00363',name:'NAKORNTHON HOSPITAL',code:'CD2023-00363',city:'กรุงเทพมหานคร',phone:'024509999'},
+{id:'CD2023-00352',name:'Atta Clinic',code:'CD2023-00352',city:'จังหวัดกรุงเทพมหานคร',phone:'084-7038888'},
+{id:'CD2023-00345',name:'Gangnam Clinic',code:'CD2023-00345',city:'',phone:''},
+{id:'CD2023-00341',name:'KVK Center Clinic',code:'CD2023-00341',city:'จังหวัดนครราชสีมา',phone:'095-6141444'},
+{id:'CD2023-00339',name:'One medical Clinic (Alpha Clinic)',code:'CD2023-00339',city:'เชียงใหม่',phone:''},
+{id:'CD2023-00338',name:'Privato Clinic',code:'CD2023-00338',city:'จังหวัดกรุงเทพมหานคร',phone:''},
+{id:'CD2023-00332',name:'Stamp fleur Clinic',code:'CD2023-00332',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00331',name:'Doctor Designs Clinic',code:'CD2023-00331',city:'จังหวัดเชียงใหม่',phone:''},
+{id:'CD2023-00330',name:'Moriko Plus Clinic',code:'CD2023-00330',city:'จังหวัดสุราษฎร์ธานี',phone:''},
+{id:'CD2023-00326',name:'แพรระวี คลินิก',code:'CD2023-00326',city:'จังหวัดกำแพงเพชร',phone:'055-716617,086-94055'},
+{id:'CD2023-00318',name:'Glam Clinic',code:'CD2023-00318',city:'จังหวัดฉะเชิงเทรา',phone:''},
+{id:'CD2023-00314',name:'Hertitude Clinic',code:'CD2023-00314',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00313',name:'D SKIN Clinic (DSK)',code:'CD2023-00313',city:'จังหวัดนครปฐม',phone:'091-7466161'},
+{id:'CD2023-00312',name:'The Scarlett Clinic',code:'CD2023-00312',city:'กรุงเทพฯ',phone:''},
+{id:'CD2023-00309',name:'Smith Prive’ Aesthetique Clinic',code:'CD2023-00309',city:'จังหวัดกรุงเทพมหานคร',phone:'02-5397543'},
+{id:'CD2023-00308',name:'Dr.namwan clinic',code:'CD2023-00308',city:'จังหวัดเชียงใหม่',phone:''},
+{id:'CD2023-00303',name:'SLC Clinic',code:'CD2023-00303',city:'',phone:''},
+{id:'CD2023-00302',name:'Amarante Clinic',code:'CD2023-00302',city:'กรุงเทพฯ',phone:''},
+{id:'CD2023-00296',name:'Dr.Supranee Laser Clinic',code:'CD2023-00296',city:'กรุงเทพฯ',phone:''},
+{id:'CD2023-00295',name:'Dahlia Clinic',code:'CD2023-00295',city:'กรุงเทพฯ',phone:''},
+{id:'CD2023-00293',name:'Amara Clinic',code:'CD2023-00293',city:'จังหวัดนนทบุรี',phone:''},
+{id:'CD2023-00290',name:'Immagini Clinic',code:'CD2023-00290',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00285',name:'Amara Clinic สาขาพหลโยธิน',code:'CD2023-00285',city:'กรุงเทพฯ',phone:''},
+{id:'CD2023-00277',name:'Apex Profound Beauty',code:'CD2023-00277',city:'',phone:''},
+{id:'CD2023-00276',name:'Apiradee Clinic',code:'CD2023-00276',city:'จังหวัดนครศรีธรรมราช',phone:'092-9141462'},
+{id:'CD2023-00275',name:'A-tier wellness',code:'CD2023-00275',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00274',name:'Meesook Clinic',code:'CD2023-00274',city:'จังหวัดมุกดาหาร',phone:'042 041 433'},
+{id:'CD2023-00270',name:'Vaedana clinic',code:'CD2023-00270',city:'จังหวัดสุราษฎร์ธานี',phone:''},
+{id:'CD2023-00269',name:'Shayne & Co. Clinic',code:'CD2023-00269',city:'กรุงเทพ',phone:''},
+{id:'CD2023-00267',name:'Le beautique Clinic',code:'CD2023-00267',city:'จังหวัดกระบี่',phone:''},
+{id:'CD2023-00259',name:'Medisci Clinic',code:'CD2023-00259',city:'จังหวัดกรุงเทพมหานคร',phone:''},
+{id:'CD2023-00258',name:'Mediwelle Clinic',code:'CD2023-00258',city:'จังหวัดกรุงเทพมหานคร',phone:'02-2532465'},
+{id:'CD2023-00256',name:'Maison Oliva Clinic',code:'CD2023-00256',city:'จังหวัดกรุงเทพมหานคร',phone:'064-1614939'},
+{id:'CD2023-00255',name:'Metro Bangkok Center',code:'CD2023-00255',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00253',name:'Face Story Clinic (Udon)',code:'CD2023-00253',city:'จังหวัดอุดรธานี',phone:''},
+{id:'CD2023-00251',name:'Fleur Clinic',code:'CD2023-00251',city:'จังหวัดสุรินทร์',phone:''},
+{id:'CD2023-00248',name:'Chiwi Detox Clinic',code:'CD2023-00248',city:'จังหวัดภูเก็ต',phone:'0634904563'},
+{id:'CD2023-00246',name:'Immagini (สาขาเซ็นทรัลลาดพร้าว)',code:'CD2023-00246',city:'กรุงเทพ',phone:''},
+{id:'CD2023-00244',name:'โรงพยาบาลกรุงเทพ สิริโรจน์',code:'CD2023-00244',city:'กรุงเทพ',phone:''},
+{id:'CD2023-00242',name:'Aesthete Clinic',code:'CD2023-00242',city:'กรุงเทพ',phone:''},
+{id:'CD2023-00235',name:'The Signature Clinic',code:'CD2023-00235',city:'กรุงเทพฯ',phone:''},
+{id:'CD2023-00229',name:'The Wish Clinic',code:'CD2023-00229',city:'จังหวัดชลบุรี',phone:''},
+{id:'CD2023-00228',name:'The Loft Clinic',code:'CD2023-00228',city:'กรุงเทพมหานคร',phone:'081-8323352'},
+{id:'CD2023-00225',name:'The Brice Clinic',code:'CD2023-00225',city:'จังหวัดสกลนคร',phone:''},
+{id:'CD2023-00217',name:'Dermaster Clinic',code:'CD2023-00217',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00213',name:'Sera Clinic',code:'CD2023-00213',city:'จังหวัดสงขลา',phone:'095-5466395'},
+{id:'CD2023-00204',name:'K-Skill Clinic Rayong',code:'CD2023-00204',city:'จังหวัดระยอง',phone:'097-0168800'},
+{id:'CD2023-00198',name:'Chiva-Som International Health Resort',code:'CD2023-00198',city:'จ.ประจวบคีรีขันธ์',phone:''},
+{id:'CD2023-00183',name:'Dr.Wichai Laser Clinic',code:'CD2023-00183',city:'กรุงเทพฯ',phone:''},
+{id:'CD2023-00170',name:'Thongchai Clinic',code:'CD2023-00170',city:'จังหวัดสุรินทร์',phone:'044-531115'},
+{id:'CD2023-00164',name:'4649 Clinic',code:'CD2023-00164',city:'จังหวัดเชียงใหม่',phone:'053-234657'},
+{id:'CD2023-00142',name:'Dr.Chen Clinic',code:'CD2023-00142',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00139',name:'Gable Clinic',code:'CD2023-00139',city:'จ.มหาสารคาม',phone:'083-4629669'},
+{id:'CD2023-00136',name:'You Desire Clinic',code:'CD2023-00136',city:'กรุงเทพ',phone:'061-1962391'},
+{id:'CD2023-00135',name:'Dr.Fern Clinic',code:'CD2023-00135',city:'จังหวัดลพบุรี',phone:'097-2080955'},
+{id:'CD2023-00106',name:'คลินิกเดิร์มซายซ์ ผิวหนังเลเซอร์',code:'CD2023-00106',city:'จังหวัดอ่างทอง',phone:'089-4495987'},
+{id:'CD2023-00095',name:'คลินิกหมอกำธร',code:'CD2023-00095',city:'จ.นครศรีธรรมราช',phone:'0831025455'},
+{id:'CD2023-00078',name:'Kornravee Clinic',code:'CD2023-00078',city:'กรุงเทพมหานคร',phone:''},
+{id:'CD2023-00074',name:'The Venita clinic',code:'CD2023-00074',city:'จ.นครราชสีมา',phone:''},
+{id:'CD2023-00065',name:'MSB Clinic (เมืองสมบัติ คลินิก)',code:'CD2023-00065',city:'จังหวัดสงขลา',phone:'090-915-9889'},
+{id:'CD2023-00064',name:'We like Clinic',code:'CD2023-00064',city:'จ.ตรัง',phone:''},
+{id:'CD2023-00063',name:'LS Clinic',code:'CD2023-00063',city:'จังหวัดอุดรธานี',phone:'0906159966'},
+{id:'CD2023-00053',name:'Dr.moss clinic สาขา ภูเก็ต',code:'CD2023-00053',city:'',phone:''},
+{id:'CD2023-00051',name:'Neeracha Clinic',code:'CD2023-00051',city:'จ.นครสวรรค์',phone:'089-4646946'},
+{id:'CD2023-00043',name:'Healthy Skin Clinic',code:'CD2023-00043',city:'',phone:'0898662545'},
+{id:'CD2023-00024',name:'Skin Solution Clinic คลินิกเฉพาะทางผิวหนัง พญ.กุลวดี',code:'CD2023-00024',city:'จังหวัดเชียงใหม่',phone:''},
+{id:'CD2023-00013',name:'คณะแพทยศาสตร์ มหาวิทยาลัยสงขลานครินทร์',code:'CD2023-00013',city:'จังหวัดสงขลา',phone:'074-455000'},
+{id:'CD2023-00006',name:'Cherish Clinic',code:'CD2023-00006',city:'จังหวัดภูเก็ต',phone:'095-2894653'},
+{id:'AESLA-001',name:'Aesla',code:'AESLA-001',city:'กทม',phone:''}
+];
+const MACHINES  = [
+{id:'LUN-MAC00002',name:'XERF System Package',code:'LUN-MAC00002',partNo:'',type:'LUN',sapId:'LUN-MAC00002'},
+{id:'CYS-MAC00003',name:'PicoSure laser Systems - 755 nm.',code:'CYS-MAC00003',partNo:'105-7012-000',type:'CYS',sapId:'CYS-MAC00003'},
+{id:'ASP-MAC00006',name:'Mediostar Monolith Package',code:'ASP-MAC00006',partNo:'M10-0100-000',type:'ASP',sapId:'ASP-MAC00006'},
+{id:'VEU-MAC00001',name:'Venus Legacy Package',code:'VEU-MAC00001',partNo:'LE240004',type:'VEU',sapId:'VEU-MAC00001'},
+{id:'VEU-MAC00006',name:'Venus Viva MD Package',code:'VEU-MAC00006',partNo:'VI102402GLB',type:'VEU',sapId:'VEU-MAC00006'},
+{id:'ZIM-MAC00003',name:'Cryo7 230V, 50-60 Hz',code:'ZIM-MAC00003',partNo:'Zimmer7350-XA1',type:'ZIM',sapId:'ZIM-MAC00003'},
+{id:'CYS-MAC00002',name:'PicoSure Pro Laser System',code:'CYS-MAC00002',partNo:'100-7051-010',type:'CYS',sapId:'CYS-MAC00002'},
+{id:'HYD-MAC00002',name:'HydraFacial Syndeo 240V Package',code:'HYD-MAC00002',partNo:'7000079-BLK',type:'HYD',sapId:'HYD-MAC00002'},
+{id:'CYS-MAC00001',name:'POTENZA SYSTEM',code:'CYS-MAC00001',partNo:'105-7043-200',type:'CYS',sapId:'CYS-MAC00001'},
+{id:'BIO-MAC00001',name:'CFU ELIFE Package',code:'BIO-MAC00001',partNo:'CFU1097',type:'BIO',sapId:'BIO-MAC00001'},
+{id:'LUN-MAC00001',name:'Derma V Laser System Package',code:'LUN-MAC00001',partNo:'',type:'LUN',sapId:'LUN-MAC00001'},
+{id:'HUM-MAC00005',name:'Body-Jet Package',code:'HUM-MAC00005',partNo:'500000',type:'HUM',sapId:'HUM-MAC00005'},
+{id:'VEU-MAC00012',name:'Venus Freeze Package',code:'VEU-MAC00012',partNo:'VN-00009',type:'VEU',sapId:'VEU-MAC00012'},
+{id:'CYS-MAC00005',name:'SculpSure Laser System',code:'CYS-MAC00005',partNo:'105-7026-000',type:'CYS',sapId:'CYS-MAC00005'},
+{id:'GME-MAC00001',name:'Flexsys Base Unit',code:'GME-MAC00001',partNo:'GME-1070',type:'GME',sapId:'GME-MAC00001'},
+{id:'LUN-MAC00003',name:'Healite II System Package',code:'LUN-MAC00003',partNo:'',type:'LUN',sapId:'LUN-MAC00003'},
+{id:'VEU-MAC00005',name:'Venus Viva Package (Second Hand)',code:'VEU-MAC00005',partNo:'VI102402',type:'VEU',sapId:'VEU-MAC00005'},
+{id:'VEU-MAC00004',name:'Venus Viva Package',code:'VEU-MAC00004',partNo:'VI102402',type:'VEU',sapId:'VEU-MAC00004'},
+{id:'ASP-MAC00009',name:'Body Lab',code:'ASP-MAC00009',partNo:'M124H1',type:'ASP',sapId:'ASP-MAC00009'},
+{id:'CYS-MAC00006',name:'MedLite C6 Laser',code:'CYS-MAC00006',partNo:'659-0030-1',type:'CYS',sapId:'CYS-MAC00006'},
+{id:'ASP-AAP00165',name:'Cable holder arm (Body-Lab)',code:'ASP-AAP00165',partNo:'044-2103-1A',type:'ASP',sapId:'ASP-AAP00165'},
+{id:'HYD-MAC00001',name:'Elite MD 240V Package (Hydrafacial)',code:'HYD-MAC00001',partNo:'70290-03-01',type:'HYD',sapId:'HYD-MAC00001'},
+{id:'ASP-AAP00006',name:'MEDIOSTAR MONOLITH (M Handpiece)',code:'ASP-AAP00006',partNo:'839-4100-000',type:'ASP',sapId:'ASP-AAP00006'},
+{id:'ASP-MAC00005',name:'MCL31 Dermablate Package',code:'ASP-MAC00005',partNo:'818-2000-000',type:'ASP',sapId:'ASP-MAC00005'},
+{id:'CYS-MAC00007',name:'Cynergy MPX Package',code:'CYS-MAC00007',partNo:'105-0065-000(100-7002-180)',type:'CYS',sapId:'CYS-MAC00007'},
+{id:'ASP-MAC00011',name:'Dermablate Package',code:'ASP-MAC00011',partNo:'M18-4000-000',type:'ASP',sapId:'ASP-MAC00011'},
+{id:'VEU-MAC00007',name:'Venus Viva MD Package (Second Hand)',code:'VEU-MAC00007',partNo:'VI102402GLB-2H',type:'VEU',sapId:'VEU-MAC00007'},
+{id:'VEU-AAP00023',name:'Viva applicator (Viva)',code:'VEU-AAP00023',partNo:'AS110011',type:'VEU',sapId:'VEU-AAP00023'},
+{id:'CYS-MAC00008',name:'PicoSure laser Systems - 755 nm. (Second Hand)',code:'CYS-MAC00008',partNo:'105-7012-000',type:'CYS',sapId:'CYS-MAC00008'},
+{id:'ASP-AAP00063',name:'Button for emergency off, epilap',code:'ASP-AAP00063',partNo:'855-0199-018',type:'ASP',sapId:'ASP-AAP00063'},
+{id:'HYD-MAC00004',name:'Elite MD 240V Package (Hydrafacial) (Secondhand)',code:'HYD-MAC00004',partNo:'70290-03-01-2H',type:'HYD',sapId:'HYD-MAC00004'},
+{id:'VEU-MAC00009',name:'Venus Velocity Package',code:'VEU-MAC00009',partNo:'VL000001',type:'VEU',sapId:'VEU-MAC00009'},
+{id:'ASP-MAC00002',name:'Quadro Star Pro',code:'ASP-MAC00002',partNo:'AS-00033',type:'ASP',sapId:'ASP-MAC00002'},
+{id:'ASP-AAP00007',name:'MEDIOSTAR MONOLITH (L Handpiece)',code:'ASP-AAP00007',partNo:'839-4600-000',type:'ASP',sapId:'ASP-AAP00007'},
+{id:'VEU-MAC00003',name:'Venus Freeze Plus Package',code:'VEU-MAC00003',partNo:'FRP00002',type:'VEU',sapId:'VEU-MAC00003'},
+{id:'CYS-MAC00010',name:'TEMPSURE-RF SYSTEM',code:'CYS-MAC00010',partNo:'100-7021-010',type:'CYS',sapId:'CYS-MAC00010'},
+{id:'ASP-MAC00003',name:'The Epi Lab Package',code:'ASP-MAC00003',partNo:'815-9110-000',type:'ASP',sapId:'ASP-MAC00003'},
+{id:'HUM-MAC00006',name:'Body-Jet evo Package',code:'HUM-MAC00006',partNo:'500000-7',type:'HUM',sapId:'HUM-MAC00006'},
+{id:'VEU-AAP00019',name:'Deionizer Assy, Versa',code:'VEU-AAP00019',partNo:'VN-00390(AS120079)',type:'VEU',sapId:'VEU-AAP00019'},
+{id:'DEMO-MAC00024',name:'CFU ELIFE (DEMO)',code:'DEMO-MAC00024',partNo:'',type:'DEMO',sapId:'DEMO-MAC00024'},
+{id:'DEMO-MAC00025',name:'FLEXSYS (DEMO)',code:'DEMO-MAC00025',partNo:'',type:'DEMO',sapId:'DEMO-MAC00025'}
+];
+
+const PM_CHECKLIST_DEFAULTS = [
+  { item: 'Handpiece / Applicator Inspection', result: '', remark: '' },
+  { item: 'Cable & Connector Check', result: '', remark: '' },
+  { item: 'Power On / Self-Test (Boot Sequence)', result: '', remark: '' },
+  { item: 'Function Test — 100% Power Output', result: '', remark: '' },
+  { item: 'Sound & Connect Pin Test', result: '', remark: '' },
+  { item: 'Protective Tip / Accessory Check', result: '', remark: '' },
+  { item: 'Spare PAD / Return PAD Cable Check', result: '', remark: '' },
+  { item: 'Pool Switch / Safety Switch Test', result: '', remark: '' },
+  { item: 'Cooling System Check (Fan / Chiller)', result: '', remark: '' },
+  { item: 'Water Flow / Water Pump Check', result: '', remark: '' },
+  { item: 'Software Version Verification', result: '', remark: '' },
+  { item: 'Overall Safety Inspection', result: '', remark: '' },
+];
+
+const CLEANING_DEFAULTS = [
+  { item: 'Clean Handpiece / Applicator', done: false },
+  { item: 'Clean Filter / Air Inlet', done: false },
+  { item: 'Clean Cooling Fans & Vents', done: false },
+  { item: 'Clean Water System / Reservoir', done: false },
+  { item: 'Wipe Down Machine Exterior', done: false },
+  { item: 'Clean PAD Cables & Connectors', done: false },
+];
+
+// ── STATE ─────────────────────────────────────────────────────
+let checklistData  = PM_CHECKLIST_DEFAULTS.map(r => ({...r}));
+let cleaningData   = CLEANING_DEFAULTS.map(r => ({...r}));
+let partsData      = [];
+let photoDataURLs  = [];
+let selCategories  = [];
+let currentStep    = 1;
+let orderNumber    = '';
+
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  document.getElementById('current-date').textContent =
+    now.toLocaleDateString('th-TH', {day:'2-digit', month:'short', year:'2-digit'});
+  document.getElementById('service-date').value = now.toISOString().split('T')[0];
+  // Report No. is entered by user — header shows live value
+  document.getElementById('order-number').textContent = '—';
+  // Set today as default sign date
+  document.getElementById('sign-date-cust').value = now.toISOString().split('T')[0];
+
+  initCombobox('customer', CUSTOMERS, 'name', 'code');
+  initCombobox('machine',  MACHINES,  'name', 'code');
+  renderChecklist();
+  renderCleaning();
+  renderPartsTable();
+  initCanvas('canvas-tech');
+  initCanvas('canvas-cust');
+
+  document.getElementById('serviceForm').addEventListener('submit', handleSubmit);
+});
+
+// ── COMBOBOX ──────────────────────────────────────────────────
+function initCombobox(pfx, data, labelField, subField) {
+  const input    = document.getElementById(pfx+'-input');
+  const dropdown = document.getElementById(pfx+'-dropdown');
+  const toggle   = document.getElementById(pfx+'-toggle');
+  const hidden   = document.getElementById(pfx+'-value');
+  const badge    = document.getElementById(pfx+'-new-badge');
+
+  function render(q) {
+    q = q.toLowerCase().trim();
+    const matches = q ? data.filter(d => d[labelField].toLowerCase().includes(q) || d[subField].toLowerCase().includes(q)) : data.slice(0,60);
+    dropdown.innerHTML = '';
+    matches.slice(0,80).forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'combo-option';
+      const meta = item.city || item.type || item.partNo || '';
+      div.innerHTML = '<span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono shrink-0">' + item[subField] + '</span>'
+        + '<span class="flex-1 truncate">' + item[labelField] + '</span>'
+        + (meta ? '<span class="text-xs text-gray-400 shrink-0">' + meta + '</span>' : '');
+      div.addEventListener('mousedown', e => {
+        e.preventDefault();
+        input.value = item[labelField];
+        hidden.value = item[labelField];
+        badge.classList.add('hidden');
+        dropdown.classList.add('hidden');
+      });
+      dropdown.appendChild(div);
+    });
+    if (q) {
+      const exact = data.find(d => d[labelField].toLowerCase() === q);
+      if (!exact) {
+        const div = document.createElement('div');
+        div.className = 'combo-option new-entry';
+        div.innerHTML = '✦ Use "<strong>' + input.value + '</strong>" as new entry';
+        div.addEventListener('mousedown', e => {
+          e.preventDefault();
+          hidden.value = input.value;
+          badge.classList.remove('hidden');
+          dropdown.classList.add('hidden');
+        });
+        dropdown.appendChild(div);
+      }
+    }
+    if (!dropdown.children.length) dropdown.innerHTML = '<div class="combo-option text-gray-400 italic">No matches</div>';
+  }
+
+  input.addEventListener('focus', () => { render(input.value); dropdown.classList.remove('hidden'); });
+  input.addEventListener('input', () => {
+    hidden.value = input.value;
+    const match = data.find(d => d[labelField].toLowerCase() === input.value.toLowerCase());
+    badge.classList.toggle('hidden', !input.value.trim() || !!match);
+    render(input.value);
+  });
+  input.addEventListener('blur', () => setTimeout(() => dropdown.classList.add('hidden'), 180));
+  toggle.addEventListener('click', () => {
+    if (dropdown.classList.contains('hidden')) { render(input.value); dropdown.classList.remove('hidden'); }
+    else dropdown.classList.add('hidden');
+  });
+}
+
+// ── PM CHECKLIST ──────────────────────────────────────────────
+function renderChecklist() {
+  const tbody = document.getElementById('checklist-body');
+  tbody.innerHTML = '';
+  checklistData.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-gray-50 hover:bg-gray-50 transition-colors';
+    tr.innerHTML = `
+      <td class="px-3 py-2.5 text-gray-400 font-mono">${i+1}</td>
+      <td class="px-3 py-2.5 text-gray-700 font-medium text-xs">${row.item}</td>
+      <td class="px-2 py-2.5 text-center">
+        <div class="flex gap-1 justify-center">
+          <button type="button" onclick="setCheck(${i},'PASS')" class="text-xs px-2 py-1 rounded-lg border font-semibold transition-all ${row.result==='PASS'?'check-pass border-green-300':'border-gray-200 text-gray-400 hover:border-green-300'}">✓</button>
+          <button type="button" onclick="setCheck(${i},'FAIL')" class="text-xs px-2 py-1 rounded-lg border font-semibold transition-all ${row.result==='FAIL'?'check-fail border-red-300':'border-gray-200 text-gray-400 hover:border-red-300'}">✗</button>
+          <button type="button" onclick="setCheck(${i},'N/A')"  class="text-xs px-2 py-1 rounded-lg border font-semibold transition-all ${row.result==='N/A' ?'check-na  border-gray-300':'border-gray-200 text-gray-400 hover:border-gray-400'}">N/A</button>
+        </div>
+      </td>
+      <td class="px-3 py-2.5">
+        <input type="text" value="${row.remark||''}" onchange="checklistData[${i}].remark=this.value"
+          class="tbl-input text-xs text-gray-600 placeholder-gray-300" placeholder="note…"/>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function setCheck(idx, val) {
+  checklistData[idx].result = val;
+  renderChecklist();
+}
+
+function addCustomTest() {
+  const input = document.getElementById('custom-test-input');
+  const v = input.value.trim();
+  if (!v) return;
+  checklistData.push({ item: v, result: '', remark: '' });
+  renderChecklist();
+  input.value = '';
+}
+
+// ── CLEANING ──────────────────────────────────────────────────
+function renderCleaning() {
+  const container = document.getElementById('cleaning-list');
+  container.innerHTML = '';
+  cleaningData.forEach((row, i) => {
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-3 p-2.5 rounded-xl border border-gray-100 hover:bg-teal-50 transition-all';
+    div.innerHTML = `
+      <input type="checkbox" id="cl-${i}" ${row.done?'checked':''} onchange="cleaningData[${i}].done=this.checked"
+        class="w-4 h-4 text-teal-500 rounded border-gray-300 cursor-pointer"/>
+      <label for="cl-${i}" class="flex-1 text-xs text-gray-700 cursor-pointer font-medium">${row.item}</label>
+      <button type="button" onclick="removeClean(${i})" class="text-gray-300 hover:text-red-400 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>`;
+    container.appendChild(div);
+  });
+}
+
+function addCleaningItem() {
+  const v = document.getElementById('cleaning-input').value.trim();
+  if (!v) return;
+  cleaningData.push({ item: v, done: false });
+  renderCleaning();
+  document.getElementById('cleaning-input').value = '';
+}
+
+function removeClean(i) { cleaningData.splice(i,1); renderCleaning(); }
+
+// ── PARTS ─────────────────────────────────────────────────────
+function renderPartsTable() {
+  const tbody = document.getElementById('parts-tbody');
+  tbody.innerHTML = '';
+  if (!partsData.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-xs text-gray-400 italic">No parts added</td></tr>';
+    return;
+  }
+  partsData.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-gray-50';
+    tr.innerHTML = `
+      <td class="px-3 py-2 text-gray-400 font-mono text-xs">${i+1}</td>
+      <td class="px-3 py-2 text-gray-700 text-xs font-medium">${p.description}</td>
+      <td class="px-2 py-2 text-center text-xs font-mono">${p.quantity}</td>
+      <td class="px-2 py-2 text-center text-xs text-gray-500">${p.unit}</td>
+      <td class="px-2 py-2 text-center">
+        <button type="button" onclick="removePart(${i})" class="text-gray-300 hover:text-red-400 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function addPart() {
+  const desc = document.getElementById('part-desc').value.trim();
+  if (!desc) return;
+  partsData.push({
+    description: desc,
+    quantity: parseInt(document.getElementById('part-qty').value)||1,
+    unit: document.getElementById('part-unit').value
+  });
+  renderPartsTable();
+  document.getElementById('part-desc').value = '';
+  document.getElementById('part-qty').value = '1';
+}
+
+function removePart(i) { partsData.splice(i,1); renderPartsTable(); }
+
+// ── PHOTOS ────────────────────────────────────────────────────
+function handlePhotoUpload(input) {
+  const files = Array.from(input.files);
+  const remaining = 10 - photoDataURLs.length;
+  files.slice(0, remaining).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      photoDataURLs.push({ name: file.name, dataURL: e.target.result });
+      renderPhotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderPhotos() {
+  const grid = document.getElementById('photo-grid');
+  grid.innerHTML = '';
+  photoDataURLs.forEach((p, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'relative';
+    wrap.innerHTML = `<img src="${p.dataURL}" class="photo-thumb"/>
+      <button type="button" onclick="removePhoto(${i})"
+        class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center font-bold shadow">×</button>`;
+    grid.appendChild(wrap);
+  });
+  if (photoDataURLs.length < 10) {
+    const slot = document.createElement('div');
+    slot.className = 'photo-slot';
+    slot.id = 'photo-add-slot';
+    slot.onclick = () => document.getElementById('photo-file-input').click();
+    slot.innerHTML = '<svg class="w-6 h-6 text-indigo-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg><span class="text-xs text-indigo-400 font-medium">Add Photo</span>';
+    grid.appendChild(slot);
+  }
+  document.getElementById('photo-count').textContent = photoDataURLs.length + ' / 10 photos';
+}
+
+function removePhoto(i) { photoDataURLs.splice(i,1); renderPhotos(); }
+
+// ── CATEGORY CHIPS ────────────────────────────────────────────
+function toggleCat(el) {
+  const val = el.getAttribute('data-val');
+  const idx = selCategories.indexOf(val);
+  if (idx > -1) {
+    selCategories.splice(idx,1);
+    el.classList.remove('border-orange-400','bg-orange-50','text-orange-600');
+    el.classList.add('border-gray-200','text-gray-600');
+  } else {
+    selCategories.push(val);
+    el.classList.add('border-orange-400','bg-orange-50','text-orange-600');
+    el.classList.remove('border-gray-200','text-gray-600');
+  }
+}
+
+// ── STEP NAVIGATION ───────────────────────────────────────────
+function goStep(n) {
+  if (n > currentStep && !validateStep(currentStep)) return;
+  document.querySelectorAll('.step-section').forEach(s => s.classList.add('hidden'));
+  document.getElementById('step-' + n).classList.remove('hidden');
+  currentStep = n;
+  updatePills();
+  if (n === 5) buildFullReview();
+  if (n === 6) buildSignPage();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updatePills() {
+  for (let i=1;i<=6;i++) {
+    const p = document.getElementById('sp'+i);
+    if (!p) continue;
+    p.className = 'step-pill flex-1 text-xs py-1 rounded-full font-semibold transition-all ';
+    if (i < currentStep) p.className += 'step-done text-white';
+    else if (i === currentStep) p.className += 'step-active text-white';
+    else p.className += 'step-idle';
+  }
+}
+
+// ── VALIDATION ────────────────────────────────────────────────
+function validateStep(s) {
+  let ok = true;
+  const hide = id => { const e=document.getElementById(id); if(e) e.classList.add('hidden'); };
+  const show = id => { const e=document.getElementById(id); if(e) e.classList.remove('hidden'); ok=false; };
+  if (s===1) {
+    hide('err-reportno'); hide('err-tech'); hide('err-customer'); hide('err-custname'); hide('err-email'); hide('err-machine'); hide('err-serial');
+    if (!document.getElementById('report-no').value.trim()) show('err-reportno');
+    if (!document.getElementById('technician').value) show('err-tech');
+    if (!document.getElementById('customer-input').value.trim()) show('err-customer');
+    if (!document.getElementById('customer-name').value.trim()) show('err-custname');
+    const emailVal = document.getElementById('customer-email').value.trim();
+    if (!emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) show('err-email');
+    if (!document.getElementById('machine-input').value.trim()) show('err-machine');
+    if (!document.getElementById('serial-no').value.trim()) show('err-serial');
+  }
+  if (s===2) {
+    hide('err-problem');
+    if (!document.getElementById('problem-desc').value.trim()) show('err-problem');
+  }
+  if (s===4) {
+    hide('err-resolution');
+    if (!document.getElementById('resolution').value.trim()) show('err-resolution');
+  }
+  return ok;
+}
+
+// ── BUILD FULL REVIEW ─────────────────────────────────────────
+function buildFullReview() {
+  const get = id => document.getElementById(id)?.value || '';
+  const svcType = document.querySelector('input[name="service-type"]:checked')?.value || '—';
+
+  document.getElementById('rev-order-no').textContent = get('report-no') || '—';
+  document.getElementById('rev-date-tech').textContent =
+    get('service-date') + ' · ' + (get('technician') || '—');
+
+  document.getElementById('rv-clinic').textContent   = get('customer-input') || '—';
+  document.getElementById('rv-custname').textContent = get('customer-name') || '—';
+  document.getElementById('rv-email').textContent    = get('customer-email') || '—';
+  document.getElementById('rv-machine').textContent  = get('machine-input') || '—';
+  document.getElementById('rv-serial').textContent   = get('serial-no') || '—';
+  document.getElementById('rv-software').textContent = get('software-model') || '—';
+  document.getElementById('rv-date').textContent     = get('service-date') || '—';
+
+  // Categories
+  const catEl = document.getElementById('rv-categories');
+  catEl.innerHTML = selCategories.length
+    ? selCategories.map(c=>`<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">${c}</span>`).join('')
+    : '<span class="text-gray-400">—</span>';
+
+  document.getElementById('rv-errcode').textContent = get('error-code') || '—';
+  document.getElementById('rv-problem').textContent = get('problem-desc') || '—';
+  document.getElementById('rv-svctype').textContent = svcType;
+  document.getElementById('rv-action').textContent  = get('resolution') || '—';
+  document.getElementById('rv-shots').textContent   = get('shot-count') || '—';
+  document.getElementById('rv-hp').textContent      = get('handpiece-count') || '—';
+  document.getElementById('rv-downtime').textContent= (get('downtime')||'0') + ' hrs';
+  document.getElementById('rv-remarks').textContent = get('remarks') || '—';
+
+  const statusMap = {working:'✅ Working',followup:'⚠️ Able to run — Need to follow up',cannot_run:'🔴 Cannot run'};
+  document.getElementById('rv-status').textContent = statusMap[get('status-after')] || '—';
+
+  // Checklist
+  const chkEl = document.getElementById('rv-checklist');
+  chkEl.innerHTML = checklistData.map((r,i) => `
+    <div class="flex items-center gap-2 text-xs py-1.5 border-b border-gray-100">
+      <span class="w-5 text-gray-400 font-mono shrink-0">${i+1}</span>
+      <span class="flex-1 text-gray-700">${r.item}</span>
+      <span class="px-2 py-0.5 rounded-full font-bold shrink-0 ${r.result==='PASS'?'bg-green-100 text-green-700':r.result==='FAIL'?'bg-red-100 text-red-700':r.result==='N/A'?'bg-gray-100 text-gray-500':'bg-yellow-100 text-yellow-700'}">${r.result||'—'}</span>
+      ${r.remark?`<span class="text-gray-400 text-xs shrink-0 max-w-[80px] truncate">${r.remark}</span>`:''}
+    </div>`).join('');
+
+  // Cleaning
+  const clEl = document.getElementById('rv-cleaning');
+  clEl.innerHTML = cleaningData.map(r => `
+    <div class="flex items-center gap-2 text-xs py-1">
+      <span class="${r.done?'text-teal-500':'text-gray-300'}">${r.done?'☑':'☐'}</span>
+      <span class="${r.done?'text-gray-700':'text-gray-400'}">${r.item}</span>
+    </div>`).join('') || '<span class="text-xs text-gray-400">—</span>';
+
+  // Parts table
+  const ptEl = document.getElementById('rv-parts-table');
+  if (partsData.length) {
+    ptEl.innerHTML = `<table class="w-full text-xs"><thead><tr class="bg-green-50"><th class="text-left px-3 py-1.5 font-semibold text-green-700">#</th><th class="text-left px-3 py-1.5 font-semibold text-green-700">Description</th><th class="text-center px-3 py-1.5 font-semibold text-green-700">Qty</th><th class="text-center px-3 py-1.5 font-semibold text-green-700">Unit</th></tr></thead><tbody>`
+      + partsData.map((p,i)=>`<tr class="border-b border-gray-50"><td class="px-3 py-1.5 text-gray-400 font-mono">${i+1}</td><td class="px-3 py-1.5 text-gray-700">${p.description}</td><td class="px-3 py-1.5 text-center font-mono">${p.quantity}</td><td class="px-3 py-1.5 text-center text-gray-500">${p.unit}</td></tr>`).join('')
+      + '</tbody></table>';
+  } else { ptEl.innerHTML = '<span class="text-xs text-gray-400">No parts used</span>'; }
+
+  // Photos
+  const phEl = document.getElementById('rv-photos');
+  phEl.innerHTML = photoDataURLs.length
+    ? photoDataURLs.map(p=>`<img src="${p.dataURL}" class="w-16 h-16 object-cover rounded-lg border-2 border-indigo-100"/>`).join('')
+    : '<span class="text-xs text-gray-400">No photos</span>';
+}
+
+// ── SAP PAYLOAD ────────────────────────────────────────────────
+function buildPayload() {
+  const get = id => document.getElementById(id)?.value?.trim() || '';
+  const customer = get('customer-input');
+  const machine  = get('machine-input');
+  const custData = CUSTOMERS.find(c=>c.name===customer);
+  const machData = MACHINES.find(m=>m.name===machine);
+  const svcType  = document.querySelector('input[name="service-type"]:checked')?.value||'Corrective';
+
+  return {
+    serviceRecord: {
+      metadata: {
+        recordId: get('report-no'), submittedAt: new Date().toISOString(),
+        submittedBy: get('technician'), source: 'AESLA_FieldServiceApp_v2', apiVersion: '2025-01',
+      },
+      sapIntegration: {
+        notificationType: svcType==='Preventive'?'M1':'M2',
+        orderType: 'PM01', plantCode: 'TH01', workCenter: 'SVC_AESLA',
+        functionalLocation: machData?.sapId||'FL-UNREGISTERED',
+      },
+      customer: {
+        customerId: custData?.id||null, customerCode: custData?.code||null,
+        clinicName: customer, contactName: get('customer-name'), contactEmail: get('customer-email'), isNewCustomer: !custData,
+      },
+      equipment: {
+        equipmentId: machData?.id||null, sapEquipmentId: machData?.sapId||null,
+        equipmentName: machine, equipmentType: machData?.type||'UNKNOWN',
+        serialNumber: get('serial-no'), softwareModel: get('software-model'), isNewEquipment: !machData,
+      },
+      serviceDetails: {
+        serviceType: svcType, serviceDate: get('service-date'),
+        problemCategory: selCategories, errorCode: get('error-code')||null,
+        symptom: get('problem-desc'), actionTaken: get('resolution'),
+        pmChecklist: checklistData.map(r=>({ item:r.item, result:r.result||'—', remark:r.remark||null })),
+        cleaningChecklist: cleaningData.map(r=>({ item:r.item, completed:r.done })),
+        replacedParts: partsData.map((p,i)=>({ lineNumber:i+1, description:p.description, quantity:p.quantity, unit:p.unit })),
+        replacedPartsCount: partsData.length,
+        deviceShotCount: parseInt(get('shot-count'))||null,
+        handpieceStartCount: parseInt(get('handpiece-count'))||null,
+        downtimeHours: parseFloat(get('downtime'))||0,
+        machineStatusAfterService: get('status-after'),
+        additionalRemarks: get('remarks')||null,
+        photoCount: photoDataURLs.length,
+      },
+      signatures: {
+        technicianSigned:  !isCanvasEmpty('canvas-tech'),
+        customerSigned:    !isCanvasEmpty('canvas-cust'),
+        customerSignDate:  document.getElementById('sign-date-cust')?.value || null,
+        technicianSignDataURL: isCanvasEmpty('canvas-tech') ? null : document.getElementById('canvas-tech').toDataURL('image/png'),
+        customerSignDataURL:   isCanvasEmpty('canvas-cust') ? null : document.getElementById('canvas-cust').toDataURL('image/png'),
+      }
+    }
+  };
+}
+
+function syntaxHL(json) {
+  return json.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
+      let c='json-num';
+      if(/^"/.test(m)) c=/:$/.test(m)?'json-key':'json-str';
+      else if(/true|false/.test(m)) c='json-bool';
+      return `<span class="${c}">${m}</span>`;
+    });
+}
+
+function showJsonPreview() {
+  document.getElementById('json-content').innerHTML = syntaxHL(JSON.stringify(buildPayload(),null,2));
+  document.getElementById('json-modal').classList.remove('hidden');
+}
+
+function copyJson() {
+  navigator.clipboard.writeText(JSON.stringify(buildPayload(),null,2))
+    .then(()=>toast('📋','Copied to clipboard!'));
+}
+
+// ── SUBMIT ─────────────────────────────────────────────────────
+async function handleSubmit(e) {
+  e.preventDefault();
+  if (!validateStep(1)||!validateStep(2)||!validateStep(4)) { toast('⚠️','Please fill all required fields'); return; }
+  // Validate customer signature
+  if (isCanvasEmpty('canvas-cust')) {
+    document.getElementById('err-custsign').classList.remove('hidden');
+    toast('✍️','Customer signature is required');
+    return;
+  }
+  document.getElementById('err-custsign').classList.add('hidden');
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.classList.add('btn-pulse');
+  btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Submitting…';
+
+  const payload = buildPayload();
+  try {
+    const res = await fetch('/api/service-record', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    if (!res.ok) throw new Error(res.status);
+    const result = await res.json();
+    toast('✅','Submitted! SAP No: '+(result.sapNotifNo||orderNumber));
+  } catch {
+    console.warn('Demo Mode — SAP Payload:', JSON.stringify(payload,null,2));
+    toast('🟡','Demo Mode — Payload logged to console');
+  }
+  setTimeout(()=>{ btn.disabled=false; btn.classList.remove('btn-pulse'); btn.innerHTML='<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Submit to SAP'; }, 3000);
+}
+
+// ── SIGNATURE CANVAS ──────────────────────────────────────────
+function initCanvas(id) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let lastX = 0, lastY = 0;
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  }
+
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
+  canvas.addEventListener('mousedown',  e => { drawing=true; const p=getPos(e); lastX=p.x; lastY=p.y; });
+  canvas.addEventListener('mousemove',  e => {
+    if (!drawing) return;
+    const p = getPos(e);
+    ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(p.x,p.y); ctx.stroke();
+    lastX=p.x; lastY=p.y;
+  });
+  canvas.addEventListener('mouseup',   () => drawing=false);
+  canvas.addEventListener('mouseleave',() => drawing=false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=getPos(e); lastX=p.x; lastY=p.y; }, {passive:false});
+  canvas.addEventListener('touchmove',  e => {
+    e.preventDefault();
+    if (!drawing) return;
+    const p = getPos(e);
+    ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(p.x,p.y); ctx.stroke();
+    lastX=p.x; lastY=p.y;
+  }, {passive:false});
+  canvas.addEventListener('touchend',  () => drawing=false);
+}
+
+function clearCanvas(id) {
+  const canvas = document.getElementById(id);
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function isCanvasEmpty(id) {
+  const canvas = document.getElementById(id);
+  const ctx = canvas.getContext('2d');
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  return !data.some(v => v !== 0);
+}
+
+// ── BUILD SIGN PAGE ────────────────────────────────────────────
+function buildSignPage() {
+  const get = id => document.getElementById(id)?.value?.trim() || '';
+  const statusMap = {working:'✅ Working',followup:'⚠️ Able to run — Need to follow up',cannot_run:'🔴 Cannot run'};
+  document.getElementById('sign-report-no').textContent = get('report-no') || '—';
+  document.getElementById('sign-date').textContent      = get('service-date') || '—';
+  document.getElementById('sign-clinic').textContent    = get('customer-input') || '—';
+  document.getElementById('sign-machine').textContent   = get('machine-input') || '—';
+  document.getElementById('sign-serial').textContent    = get('serial-no') || '—';
+  document.getElementById('sign-status').textContent    = statusMap[get('status-after')] || '—';
+  document.getElementById('sign-tech-name').textContent = get('technician') || '—';
+  document.getElementById('sign-cust-name').textContent = get('customer-name') || '—';
+}
+
+// ── UTILS ──────────────────────────────────────────────────────
+function cnt(inId,outId) { document.getElementById(outId).textContent = document.getElementById(inId).value.length; }
+function toast(icon, msg) {
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast-msg').textContent  = msg;
+  const t = document.getElementById('toast');
+  t.classList.remove('hidden');
+  setTimeout(()=>t.classList.add('hidden'),3500);
+}
+</script>
+</body>
+</html>

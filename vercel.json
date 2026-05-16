@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "name": "aesla-field-service",
+  "builds": [
+    { "src": "server.js",      "use": "@vercel/node" },
+    { "src": "dashboard.html", "use": "@vercel/static" },
+    { "src": "index.html",     "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)",   "dest": "server.js"      },
+    { "src": "/dashboard",  "dest": "dashboard.html"  },
+    { "src": "/",           "dest": "index.html"      },
+    { "src": "/(.*)",       "dest": "server.js"       }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

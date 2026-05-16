@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AESLA — Service Operations Dashboard</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Tahoma,sans-serif;}
+body{background:#0f172a;color:#e2e8f0;min-height:100vh;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:#334155;border-radius:4px;}
+.shell{display:flex;min-height:100vh;}
+.sb{width:214px;min-width:214px;background:#1e293b;border-right:1px solid #334155;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sb-logo{padding:16px 18px 12px;border-bottom:1px solid #334155;}
+.sb-logo h1{font-size:14px;font-weight:700;color:#f1f5f9;}
+.sb-logo p{font-size:10px;color:#64748b;margin-top:1px;text-transform:uppercase;letter-spacing:.7px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 18px;cursor:pointer;font-size:12px;color:#94a3b8;border-left:3px solid transparent;transition:all .12s;}
+.nav-item:hover{background:#263147;color:#e2e8f0;}
+.nav-item.active{background:#1d3557;color:#60a5fa;border-left-color:#3b82f6;}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;}
+.sb-sect{padding:12px 18px 4px;font-size:10px;color:#334155;text-transform:uppercase;letter-spacing:1px;font-weight:700;}
+.sb-status{padding:5px 18px;font-size:11px;color:#64748b;display:flex;align-items:center;gap:5px;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot-g{background:#22c55e;} .dot-y{background:#eab308;} .dot-r{background:#ef4444;} .dot-b{background:#3b82f6;}
+.sb-foot{padding:12px 18px;border-top:1px solid #334155;font-size:11px;color:#475569;margin-top:auto;}
+.main{flex:1;overflow-y:auto;background:#0f172a;min-width:0;}
+.ph{padding:18px 24px 0;background:#111827;border-bottom:1px solid #1e293b;}
+.ph h2{font-size:16px;font-weight:600;color:#f1f5f9;}
+.ph p{font-size:11px;color:#64748b;padding-bottom:14px;margin-top:2px;}
+.ca{padding:18px 24px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;}
+.kc{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px 16px;}
+.kc .lbl{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+.kc .val{font-size:24px;font-weight:700;color:#f1f5f9;margin:5px 0 3px;}
+.kc .sub{font-size:11px;color:#64748b;}
+.card{background:#1e293b;border:1px solid #334155;border-radius:10px;overflow:hidden;}
+.ch{padding:12px 16px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;}
+.ch h3{font-size:13px;font-weight:600;color:#e2e8f0;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{padding:9px 12px;text-align:left;font-size:10px;color:#475569;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #334155;background:#111827;white-space:nowrap;}
+td{padding:9px 12px;border-bottom:1px solid #1e293b;color:#cbd5e1;vertical-align:middle;}
+tr:last-child td{border-bottom:none;} tr:hover td{background:#172032;}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;}
+.bg{background:#052e16;color:#4ade80;border:1px solid #166534;}
+.by{background:#1c1400;color:#fbbf24;border:1px solid #92400e;}
+.br{background:#1c0605;color:#f87171;border:1px solid #991b1b;}
+.bb{background:#0c1a33;color:#60a5fa;border:1px solid #1e40af;}
+.bp{background:#1a0f33;color:#a78bfa;border:1px solid #4c1d95;}
+.bgr{background:#1e293b;color:#94a3b8;border:1px solid #334155;}
+.mbar{height:5px;background:#0f172a;border-radius:3px;overflow:hidden;flex:1;}
+.mbar-f{height:100%;border-radius:3px;}
+.kanban{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;}
+.kcol{min-width:200px;width:200px;background:#1e293b;border:1px solid #334155;border-radius:10px;flex-shrink:0;}
+.kcol-h{padding:10px 12px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;}
+.kcol-h span{font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px;}
+.kcol-b{padding:8px;display:flex;flex-direction:column;gap:7px;min-height:60px;}
+.tk{background:#111827;border:1px solid #334155;border-radius:7px;padding:9px 10px;cursor:pointer;transition:all .12s;}
+.tk:hover{border-color:#3b82f6;background:#0f1d35;}
+.tk-id{font-size:9px;color:#475569;font-family:monospace;margin-bottom:3px;}
+.tk-t{font-size:11px;font-weight:600;color:#e2e8f0;margin-bottom:5px;line-height:1.3;}
+.tk-m{font-size:10px;color:#64748b;display:flex;align-items:center;gap:3px;margin-top:3px;}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;border:none;transition:all .12s;}
+.btn-p{background:#2563eb;color:#fff;} .btn-p:hover{background:#1d4ed8;}
+.btn-g{background:transparent;color:#94a3b8;border:1px solid #334155;} .btn-g:hover{background:#1e293b;color:#e2e8f0;}
+.btn-s{background:#16a34a;color:#fff;}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;}
+.mb{background:#1e293b;border:1px solid #334155;border-radius:14px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;}
+.mh{padding:16px 20px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;}
+.mh h3{font-size:14px;font-weight:600;color:#f1f5f9;}
+.mbody{padding:18px 20px;}
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:10px;color:#64748b;font-weight:600;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
+.fi{width:100%;background:#0f172a;border:1px solid #334155;border-radius:7px;padding:8px 10px;font-size:12px;color:#e2e8f0;outline:none;}
+.fi:focus{border-color:#3b82f6;}
+.st-tl{display:flex;flex-direction:column;gap:0;}
+.st-i{display:flex;gap:12px;position:relative;}
+.st-i:not(:last-child) .st-line{position:absolute;left:13px;top:28px;bottom:-6px;width:2px;background:#334155;}
+.st-ic{width:28px;height:28px;border-radius:50%;border:2px solid #334155;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700;position:relative;z-index:1;}
+.st-ic.done{background:#166534;border-color:#22c55e;color:#4ade80;}
+.st-ic.active{background:#1e3a8a;border-color:#3b82f6;color:#60a5fa;}
+.st-ic.pend{background:#1e293b;border-color:#475569;color:#64748b;}
+.st-ct{padding:0 0 18px;}
+.st-ct h4{font-size:12px;font-weight:600;margin-bottom:2px;}
+.st-ct p{font-size:11px;color:#64748b;line-height:1.5;}
+.al{border-radius:7px;padding:9px 12px;font-size:11px;margin-bottom:10px;display:flex;align-items:flex-start;gap:7px;}
+.al-i{background:#0c1a33;border:1px solid #1e3a8a;color:#93c5fd;}
+.rev-bar{height:10px;background:#0f172a;border-radius:5px;overflow:hidden;margin-top:4px;}
+.rev-bar-f{height:100%;border-radius:5px;}
+@media(max-width:820px){.g4{grid-template-columns:repeat(2,1fr);}.g3{grid-template-columns:1fr 1fr;}.sb{width:54px;min-width:54px;}.sb-logo p,.nav-item span,.sb-sect,.sb-status span:last-child,.sb-foot div:not(:first-child){display:none;}.nav-item{justify-content:center;padding:10px;}.sb-logo{padding:12px 8px;justify-content:center;display:flex;}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState}=React;
+
+const TECHS=[
+  {id:"T01",name:"Virayuth C.",nick:"Yuth",pos:"Technical Support Lead",tickets:5,util:90,av:"YC",skills:["Cynosure","Zimmer"]},
+  {id:"T02",name:"Koson P.",nick:"Tae",pos:"Technical",tickets:4,util:78,av:"KP",skills:["Venus","HydraFacial"]},
+  {id:"T03",name:"Wuttichai D.",nick:"Wut",pos:"Technical Support Lead",tickets:6,util:95,av:"WD",skills:["Lutronic","Asclepion"]},
+  {id:"T04",name:"Aphisit T.",nick:"Ohm",pos:"Technical Support Lead",tickets:3,util:65,av:"AT",skills:["Cynosure","GME"]},
+  {id:"T05",name:"Prachaya E.",nick:"Balloon",pos:"Engineer Support Lead",tickets:4,util:80,av:"PE",skills:["All Brands"]},
+  {id:"T06",name:"Phoobodin B.",nick:"Dennis",pos:"Engineer & Tech Support",tickets:5,util:85,av:"PB",skills:["Venus","Lutronic"]},
+  {id:"T07",name:"Natthaphon L.",nick:"Kong",pos:"Technical Support",tickets:3,util:60,av:"NL",skills:["Zimmer","Biolitec"]},
+  {id:"T08",name:"Oabnithi N.",nick:"Oat",pos:"Technical Support",tickets:2,util:45,av:"ON",skills:["Humanmed","HydraFacial"]},
+];
+
+const MACHINES=[
+  {id:"LUN-XE126B022",name:"XERF System Package",brand:"Lutronic",customer:"Dermoris Aesthetic",branch:"เอกมัย-รามอินทรา",city:"กรุงเทพฯ",sn:"XE126B022",install:"10.04.26",endDate:"10.04.27",status:"green",remark:"New"},
+  {id:"LUN-XE126B013",name:"XERF System Package",brand:"Lutronic",customer:"Jolyn Clinic (ทองหล่อ)",branch:"ทองหล่อ",city:"กรุงเทพฯ",sn:"XE126B013",install:"01.04.26",endDate:"01.04.27",status:"green",remark:"New"},
+  {id:"LUN-XE126A159",name:"XERF System Package",brand:"Lutronic",customer:"Mantra Clinic นครพนม",branch:"นครพนม",city:"จ.นครพนม",sn:"XE126A159",install:"26.03.26",endDate:"26.03.27",status:"yellow",remark:"New"},
+  {id:"CYS-PICO4629",name:"PicoSure 755nm",brand:"Cynosure",customer:"The Care Clinic (ร้อยเอ็ด)",branch:"ร้อยเอ็ด",city:"จ.ร้อยเอ็ด",sn:"PICO4629",install:"01.12.24",endDate:"01.12.27",status:"green",remark:"New"},
+  {id:"CYS-CYDH2008",name:"Cynergy MPX Package",brand:"Cynosure",customer:"รพ.ศิริราช ปิยมหาราชการุณย์",branch:"ปิยมหาราชการุณย์",city:"กรุงเทพฯ",sn:"CYDH2008",install:"05.05.20",endDate:"31.07.26",status:"yellow",remark:"ต่อ Service"},
+  {id:"VEU-VI000538",name:"Venus Viva Package",brand:"Venus",customer:"รพ.ศิริราช ปิยมหาราชการุณย์",branch:"ปิยมหาราชการุณย์",city:"กรุงเทพฯ",sn:"VI000538",install:"02.09.20",endDate:"31.07.26",status:"green",remark:"ต่อ Service"},
+  {id:"LUN-XE125J047",name:"XERF System Package",brand:"Lutronic",customer:"Smith Privé Aesthetique",branch:"เลียบด่วน",city:"กรุงเทพฯ",sn:"XE125J047",install:"02.10.25",endDate:"02.10.28",status:"green",remark:"New"},
+  {id:"VEU-VV900785",name:"Venus Viva MD Package",brand:"Venus",customer:"We Like Clinic",branch:"ตรัง",city:"จ.ตรัง",sn:"VV900785UR",install:"02.10.23",endDate:"16.10.26",status:"green",remark:"New"},
+  {id:"VEU-LE604381",name:"Venus Legacy Package",brand:"Venus",customer:"SLC Clinic",branch:"เซ็นทรัลแจ้งวัฒนะ",city:"กรุงเทพฯ",sn:"LE604381UR",install:"02.04.24",endDate:"02.04.27",status:"green",remark:"New"},
+  {id:"CYS-PICO3748",name:"PicoSure 755nm",brand:"Cynosure",customer:"Chalita Clinic",branch:"อุบลราชธานี",city:"จ.อุบลราชธานี",sn:"PICO3748",install:"02.05.22",endDate:"02.05.26",status:"red",remark:"ต่อสัญญา"},
+  {id:"BIO-1097CN24041",name:"CFU ELIFE Package",brand:"Biolitec",customer:"K-Skill Clinic Rayong",branch:"สำนักงานใหญ่",city:"จ.ระยอง",sn:"1097CN24041",install:"03.10.24",endDate:"03.10.27",status:"green",remark:"New"},
+  {id:"CYS-PICO4316",name:"PicoSure 755nm",brand:"Cynosure",customer:"Aes Class Clinic",branch:"เอสพลานาด",city:"กรุงเทพฯ",sn:"PICO4316",install:"03.04.24",endDate:"03.04.27",status:"green",remark:"New"},
+  {id:"ASP-M100101548",name:"Mediostar Monolith",brand:"Asclepion",customer:"Doctor Designs Clinic",branch:"เชียงใหม่",city:"จ.เชียงใหม่",sn:"M100101548",install:"11.08.23",endDate:"05.08.26",status:"green",remark:"New"},
+  {id:"CYS-NPCIG22644",name:"Potenza System",brand:"Cynosure",customer:"D SKIN Clinic (DSK)",branch:"สุทธิสาร",city:"กรุงเทพฯ",sn:"NPCIG22644",install:"05.10.23",endDate:"05.10.26",status:"yellow",remark:"New"},
+  {id:"LUN-XE125J117",name:"XERF System Package",brand:"Lutronic",customer:"Phuket Detox Beauty Clinic",branch:"ภูเก็ต",city:"จ.ภูเก็ต",sn:"XE125J117",install:"03.10.25",endDate:"03.10.28",status:"green",remark:"New"},
+  {id:"LUN-XE125J109",name:"XERF System Package",brand:"Lutronic",customer:"AESsense Clinic",branch:"ภูเก็ต",city:"จ.ภูเก็ต",sn:"XE125J109",install:"03.10.25",endDate:"03.10.28",status:"green",remark:"New"},
+  {id:"ZIM-2320011573",name:"Cryo7 Package",brand:"Zimmer",customer:"Wind Clinic",branch:"เลียบด่วนรามอินทรา",city:"กรุงเทพฯ",sn:"2320011573",install:"03.11.23",endDate:"03.11.26",status:"green",remark:"New"},
+  {id:"HYD-HFE23037309",name:"Elite MD 240V",brand:"HydraFacial",customer:"Dr. Supranee Laser Clinic",branch:"สุราษฎร์ธานี",city:"จ.สุราษฎร์ธานี",sn:"HFE-2303-7309",install:"03.11.23",endDate:"03.11.26",status:"yellow",remark:"New"},
+  {id:"GME-10700181",name:"Flexsys Base Unit",brand:"GME",customer:"Chamnan Clinic",branch:"บางกะปิ",city:"กรุงเทพฯ",sn:"1070-0181",install:"04.07.25",endDate:"04.07.28",status:"green",remark:"New"},
+  {id:"HUM-1362",name:"Body-Jet evo Package",brand:"Humanmed",customer:"Dr. Chen Clinic",branch:"รามคำแหง 160",city:"กรุงเทพฯ",sn:"1362",install:"10.08.23",endDate:"10.08.26",status:"red",remark:"ต่อสัญญา"},
+];
+
+const PM_MAY=[
+  {clinic:"Patcharavej Clinic",product:"PicoSure 755nm",pmDate:"01.05.26",city:"กรุงเทพฯ"},
+  {clinic:"Mi-a Clinic เชียงใหม่",product:"Cryo7 Package",pmDate:"02.05.26",city:"จ.เชียงใหม่"},
+  {clinic:"We wellness Clinic",product:"Venus Viva MD",pmDate:"02.05.26",city:"จ.กระบี่"},
+  {clinic:"Metro Bangkok Center",product:"Potenza System",pmDate:"03.05.26",city:"กรุงเทพฯ"},
+  {clinic:"Remede Clinic",product:"XERF System",pmDate:"04.05.26",city:"กรุงเทพฯ"},
+];
+
+const REVENUE={
+  service:{total:752750,months:[75600,213550,201000,200850,61750,0,0,0,0,0,0,0]},
+  parts:{total:1997504,months:[296612,184534,1032700,209582,274075,0,0,0,0,0,0,0]},
+  consumables:{total:2958974,months:[1067437,772628,639647,216589,262672,0,0,0,0,0,0,0]},
+};
+
+const initTickets={
+  "New Ticket":[
+    {id:"TK-2026-0089",title:"XERF - ไม่มีพลังงาน output",customer:"Mantra Clinic นครพนม",machine:"XERF System Package",brand:"Lutronic",branch:"นครพนม",priority:"high",type:"Corrective",date:"16.05.26",assignee:null,step:1,callStatus:null,parts:false},
+    {id:"TK-2026-0090",title:"Cryo7 - cooling alarm E-12",customer:"Wind Clinic",machine:"Cryo7 Package",brand:"Zimmer",branch:"เลียบด่วน",priority:"medium",type:"Corrective",date:"16.05.26",assignee:null,step:1,callStatus:null,parts:false},
+  ],
+  "Planning":[
+    {id:"TK-2026-0086",title:"PM ครั้งที่ 1 - Venus Viva MD",customer:"We wellness Clinic",machine:"Venus Viva MD Package",brand:"Venus",branch:"กระบี่",priority:"low",type:"PM",date:"14.05.26",assignee:"Koson P. (Tae)",step:3,callStatus:null,parts:false},
+    {id:"TK-2026-0087",title:"PM - Potenza System",customer:"Metro Bangkok Center",machine:"Potenza System",brand:"Cynosure",branch:"เซ็นทรัลแจ้งวัฒนะ",priority:"low",type:"PM",date:"14.05.26",assignee:"Virayuth C. (Yuth)",step:3,callStatus:null,parts:false},
+  ],
+  "Confirmed":[
+    {id:"TK-2026-0083",title:"PicoSure - ค่าพลังงานตก",customer:"Chalita Clinic",machine:"PicoSure 755nm",brand:"Cynosure",branch:"อุบลราชธานี",priority:"critical",type:"Corrective",date:"12.05.26",assignee:"Virayuth C. (Yuth)",step:4,callStatus:"confirmed",parts:true},
+  ],
+  "On-site":[
+    {id:"TK-2026-0080",title:"Body-Jet evo - pump failure",customer:"Dr. Chen Clinic",machine:"Body-Jet evo Package",brand:"Humanmed",branch:"รามคำแหง",priority:"high",type:"Corrective",date:"10.05.26",assignee:"Oabnithi N. (Oat)",step:5,callStatus:"confirmed",parts:true},
+    {id:"TK-2026-0081",title:"PM ครั้งที่ 2 - XERF System",customer:"Smith Privé Aesthetique",machine:"XERF System Package",brand:"Lutronic",branch:"เลียบด่วน",priority:"low",type:"PM",date:"10.05.26",assignee:"Wuttichai D. (Wut)",step:5,callStatus:"confirmed",parts:false},
+  ],
+  "Review":[
+    {id:"TK-2026-0077",title:"Cynergy MPX - ตรวจเช็คประจำปี",customer:"รพ.ศิริราช",machine:"Cynergy MPX Package",brand:"Cynosure",branch:"กรุงเทพฯ",priority:"medium",type:"PM",date:"08.05.26",assignee:"Prachaya E. (Balloon)",step:6,callStatus:"confirmed",parts:false},
+  ],
+  "Closed":[
+    {id:"TK-2026-0073",title:"Venus Legacy - handpiece เสีย",customer:"SLC Clinic",machine:"Venus Legacy Package",brand:"Venus",branch:"แจ้งวัฒนะ",priority:"high",type:"Corrective",date:"05.05.26",assignee:"Koson P. (Tae)",step:8,callStatus:"confirmed",parts:true},
+    {id:"TK-2026-0071",title:"PM - Mediostar Monolith",customer:"Doctor Designs Clinic",machine:"Mediostar Monolith",brand:"Asclepion",branch:"เชียงใหม่",priority:"low",type:"PM",date:"03.05.26",assignee:"Wuttichai D. (Wut)",step:8,callStatus:"confirmed",parts:false},
+    {id:"TK-2026-0069",title:"Potenza - RF tip error",customer:"D SKIN Clinic",machine:"Potenza System",brand:"Cynosure",branch:"สุทธิสาร",priority:"medium",type:"Corrective",date:"01.05.26",assignee:"Aphisit T. (Ohm)",step:8,callStatus:"confirmed",parts:true},
+  ],
+};
+
+const MONTHS=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+const totalRev=REVENUE.service.total+REVENUE.parts.total+REVENUE.consumables.total;
+
+function Bdg({type,lbl}){const m={green:"bg",yellow:"by",red:"br",blue:"bb",purple:"bp",gray:"bgr"};return <span className={`badge ${m[type]||"bgr"}`}>{lbl}</span>;}
+function PrioBdg({p}){const m={critical:["br","CRITICAL"],high:["br","HIGH"],medium:["by","MED"],low:["bb","LOW"]};const [c,l]=m[p]||["bgr",p];return <span className={`badge ${c}`}>{l}</span>;}
+function SttBdg({s}){if(s==="green")return <span className="badge bg"><span className="dot dot-g"/>ปกติ</span>;if(s==="yellow")return <span className="badge by"><span className="dot dot-y"/>ติดตาม</span>;return <span className="badge br"><span className="dot dot-r"/>หยุดซ่อม</span>;}
+function MBar({pct,color}){return(<div style={{display:"flex",alignItems:"center",gap:6}}><div className="mbar"><div className="mbar-f" style={{width:`${pct}%`,background:color}}/></div><span style={{fontSize:10,color:"#64748b",minWidth:24,textAlign:"right"}}>{pct}%</span></div>);}
+function Fmt(n){return Number(n).toLocaleString('th-TH');}
+
+function Overview(){
+  const total=MACHINES.length,green=MACHINES.filter(m=>m.status==="green").length,yellow=MACHINES.filter(m=>m.status==="yellow").length,red=MACHINES.filter(m=>m.status==="red").length;
+  const hp=Math.round((green/total)*100);
+  const allTk=Object.values(initTickets).flat(),open=allTk.length-initTickets["Closed"].length,crit=allTk.filter(t=>t.priority==="critical"||t.priority==="high").length;
+  const maxRev=Math.max(...REVENUE.parts.months);
+  return(<div>
+    <div className="ph"><h2>Overview Dashboard</h2><p>AESLA — รายงานสรุปงานบริการ · สัปดาห์ที่ 20 · พฤษภาคม 2569</p></div>
+    <div className="ca">
+      <div className="g4">
+        <div className="kc"><div className="lbl">Active Tickets</div><div className="val" style={{color:"#60a5fa"}}>{open}</div><div className="sub" style={{color:"#f87171"}}>{crit} สูง/วิกฤต</div></div>
+        <div className="kc"><div className="lbl">เครื่องออนไลน์</div><div className="val" style={{color:"#4ade80"}}>{green}/{total}</div><div className="sub" style={{color:"#f87171"}}>{red} เครื่องหยุด</div></div>
+        <div className="kc"><div className="lbl">Fleet Health</div><div className="val" style={{color:"#a78bfa"}}>{hp}%</div><div className="sub" style={{color:"#fbbf24"}}>{yellow} ติดตาม</div></div>
+        <div className="kc"><div className="lbl">ช่างเทคนิค</div><div className="val" style={{color:"#38bdf8"}}>8</div><div className="sub">คน · Avg {Math.round(TECHS.reduce((a,t)=>a+t.util,0)/TECHS.length)}% util</div></div>
+      </div>
+      <div className="card" style={{marginBottom:12}}>
+        <div className="ch"><h3>Revenue YTD 2026</h3><span style={{fontSize:11,color:"#4ade80",fontWeight:700}}>฿{Fmt(totalRev)}</span></div>
+        <div style={{padding:"12px 16px"}}>
+          <div className="g3" style={{marginBottom:12}}>
+            {[{lbl:"Service Revenue",val:REVENUE.service.total,color:"#60a5fa"},{lbl:"Parts Revenue",val:REVENUE.parts.total,color:"#f59e0b"},{lbl:"Consumables",val:REVENUE.consumables.total,color:"#a78bfa"}].map(r=>(
+              <div key={r.lbl} style={{background:"#111827",borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:"#64748b",marginBottom:4}}>{r.lbl}</div>
+                <div style={{fontSize:16,fontWeight:700,color:r.color}}>฿{Fmt(r.val)}</div>
+                <div className="rev-bar" style={{marginTop:6}}><div className="rev-bar-f" style={{width:`${Math.round((r.val/totalRev)*100)}%`,background:r.color}}/></div>
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize:11,color:"#64748b",marginBottom:6}}>Parts revenue by month (฿)</div>
+          <div style={{display:"flex",gap:4,alignItems:"flex-end",height:48}}>
+            {REVENUE.parts.months.map((v,i)=>(<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+              <div style={{width:"100%",background:v>0?"#f59e0b":"#1e293b",borderRadius:"2px 2px 0 0",height:v>0?`${Math.round((v/maxRev)*44)+4}px`:"4px"}}/>
+              <span style={{fontSize:9,color:i===4?"#fbbf24":"#334155"}}>{MONTHS[i]}</span>
+            </div>))}
+          </div>
+        </div>
+      </div>
+      <div className="g2">
+        <div className="card">
+          <div className="ch"><h3>Workload ช่างเทคนิค</h3></div>
+          <div style={{padding:"10px 14px"}}>
+            {TECHS.map(t=>(<div key={t.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:"#1d3557",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#60a5fa",flexShrink:0}}>{t.av}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                  <span style={{fontSize:11,color:"#e2e8f0",fontWeight:600}}>{t.nick} <span style={{fontWeight:400,color:"#64748b"}}>({t.name})</span></span>
+                  <span style={{fontSize:10,color:"#64748b"}}>{t.tickets} งาน</span>
+                </div>
+                <MBar pct={t.util} color={t.util>=90?"#ef4444":t.util>=75?"#f59e0b":"#22c55e"}/>
+              </div>
+            </div>))}
+          </div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div className="card">
+            <div className="ch"><h3>Machine Health</h3></div>
+            <div style={{padding:"10px 14px",display:"flex",gap:14,alignItems:"center"}}>
+              <div style={{position:"relative",width:80,height:80,flexShrink:0}}>
+                <svg viewBox="0 0 36 36" style={{transform:"rotate(-90deg)",width:80,height:80}}>
+                  <circle cx="18" cy="18" r="13" fill="none" stroke="#1e293b" strokeWidth="4"/>
+                  <circle cx="18" cy="18" r="13" fill="none" stroke="#22c55e" strokeWidth="4" strokeDasharray={`${(green/total)*82} 82`}/>
+                  <circle cx="18" cy="18" r="13" fill="none" stroke="#eab308" strokeWidth="4" strokeDasharray={`${(yellow/total)*82} 82`} strokeDashoffset={`-${(green/total)*82}`}/>
+                  <circle cx="18" cy="18" r="13" fill="none" stroke="#ef4444" strokeWidth="4" strokeDasharray={`${(red/total)*82} 82`} strokeDashoffset={`-${((green+yellow)/total)*82}`}/>
+                </svg>
+                <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
+                  <span style={{fontSize:14,fontWeight:700,color:"#f1f5f9"}}>{hp}%</span>
+                  <span style={{fontSize:8,color:"#64748b"}}>OK</span>
+                </div>
+              </div>
+              <div style={{flex:1}}>
+                {[{l:"ปกติ",n:green,c:"#22c55e"},{l:"ติดตาม",n:yellow,c:"#eab308"},{l:"หยุดซ่อม",n:red,c:"#ef4444"}].map(x=>(<div key={x.l} style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+                  <span className="dot" style={{background:x.c}}/><span style={{fontSize:11,color:"#94a3b8",flex:1}}>{x.l}</span><span style={{fontSize:13,fontWeight:700,color:"#e2e8f0"}}>{x.n}</span>
+                </div>))}
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="ch"><h3>PM นัดหมาย พ.ค. 69</h3></div>
+            <div style={{padding:"8px 14px"}}>
+              {PM_MAY.map((p,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",paddingBottom:7,marginBottom:7,borderBottom:"1px solid #1e293b"}}>
+                <div><div style={{fontSize:11,fontWeight:600,color:"#e2e8f0"}}>{p.clinic}</div><div style={{fontSize:10,color:"#64748b"}}>{p.product} · {p.city}</div></div>
+                <span style={{fontSize:10,fontWeight:700,color:"#fbbf24",flexShrink:0,marginLeft:8}}>{p.pmDate}</span>
+              </div>))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>);
+}
+
+function Machines(){
+  const [f,setF]=useState("all"),[q,setQ]=useState("");
+  const list=MACHINES.filter(m=>(f==="all"||m.status===f)&&(q===""||[m.name,m.customer,m.city,m.brand].some(v=>v.toLowerCase().includes(q.toLowerCase()))));
+  const brandCount={};MACHINES.forEach(m=>{brandCount[m.brand]=(brandCount[m.brand]||0)+1;});
+  return(<div>
+    <div className="ph"><h2>Machine Inventory & Status</h2><p>เครื่องที่ Deploy ทั้งหมด {MACHINES.length} เครื่อง · ข้อมูลจาก Service Package Report.xlsx</p></div>
+    <div className="ca">
+      <div className="g4" style={{marginBottom:12}}>
+        {[{l:"ทั้งหมด",v:MACHINES.length,c:"#60a5fa",s:"all"},{l:"🟢 ปกติ",v:MACHINES.filter(m=>m.status==="green").length,c:"#4ade80",s:"green"},{l:"🟡 ติดตาม",v:MACHINES.filter(m=>m.status==="yellow").length,c:"#fbbf24",s:"yellow"},{l:"🔴 หยุดซ่อม",v:MACHINES.filter(m=>m.status==="red").length,c:"#f87171",s:"red"}].map(k=>(
+          <div key={k.l} className="kc" style={{cursor:"pointer"}} onClick={()=>setF(k.s)}><div className="lbl">{k.l}</div><div className="val" style={{color:k.c,fontSize:22}}>{k.v}</div></div>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+        {Object.entries(brandCount).map(([b,n])=>(<span key={b} className="badge bb" style={{fontSize:11}}>{b} <strong style={{marginLeft:3}}>{n}</strong></span>))}
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+        <input className="fi" style={{maxWidth:260,flex:"none"}} placeholder="ค้นหา เครื่อง / ลูกค้า / เมือง / แบรนด์..." value={q} onChange={e=>setQ(e.target.value)}/>
+        {["all","green","yellow","red"].map(s=>(<button key={s} className={`btn ${f===s?"btn-p":"btn-g"}`} onClick={()=>setF(s)}>{s==="all"?"ทั้งหมด":s==="green"?"🟢 ปกติ":s==="yellow"?"🟡 ติดตาม":"🔴 หยุดซ่อม"}</button>))}
+      </div>
+      <div className="card" style={{overflowX:"auto"}}>
+        <table>
+          <thead><tr><th>Serial No.</th><th>ชื่อเครื่อง</th><th>Brand</th><th>ชื่อลูกค้า / คลินิก</th><th>สาขา</th><th>จังหวัด</th><th>สถานะ</th><th>ติดตั้ง</th><th>สิ้นสุดสัญญา</th><th>Remark</th></tr></thead>
+          <tbody>{list.map(m=>(<tr key={m.id}>
+            <td><span style={{fontFamily:"monospace",fontSize:11,color:"#60a5fa"}}>{m.sn}</span></td>
+            <td style={{fontWeight:600,color:"#e2e8f0"}}>{m.name}</td>
+            <td><Bdg type="purple" lbl={m.brand}/></td>
+            <td style={{color:"#94a3b8"}}>{m.customer}</td>
+            <td style={{fontSize:11}}>{m.branch}</td>
+            <td style={{fontSize:11}}>{m.city}</td>
+            <td><SttBdg s={m.status}/></td>
+            <td style={{fontSize:11,color:"#64748b"}}>{m.install}</td>
+            <td style={{fontSize:11,color:"#fbbf24"}}>{m.endDate}</td>
+            <td style={{fontSize:10,color:"#475569"}}>{m.remark}</td>
+          </tr>))}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>);
+}
+
+function WorkSteps({t}){
+  const S=[
+    {n:1,l:"รับ Ticket",d:"รับจาก Sales ผ่าน MS Forms · แจ้ง Engineer Lead, Associate & Service Manager"},
+    {n:2,l:"Data Enrichment",d:`ดึงจาก SharePoint: Brand ${t.brand} · ${t.branch} · Contract active`},
+    {n:3,l:"วางแผนและ Assign",d:`Assign ให้ ${t.assignee||"(ยังไม่ได้ assign)"}`},
+    {n:4,l:"ยืนยันลูกค้า",d:`Call Status: ${t.callStatus==="confirmed"?"✅ ยืนยันแล้ว":"⏳ รอช่างยืนยัน"}`},
+    {n:5,l:"On-site & FSR Draft",d:"ช่างเดินทางหน้างาน · ส่ง Field Service Report (draft)"},
+    {n:6,l:"AM Review & Sign-off",d:"AM อนุมัติ FSR · ลูกค้าเซ็น · ส่ง email อัตโนมัติ"},
+    {n:7,l:"Parts & Quotation",d:t.parts?"มีการเปลี่ยนอะไหล่ → สร้าง Quotation → Admin approve → ส่งลูกค้า":"ไม่มีการเปลี่ยนอะไหล่"},
+    {n:8,l:"SAP Sync & Closure",d:"Push ข้อมูลไป SAP PM · AM/SM ปิดงาน"},
+  ];
+  const cur=t.step||1;
+  return(<div className="st-tl">{S.map(s=>{const st=s.n<cur?"done":s.n===cur?"active":"pend";return(<div key={s.n} className="st-i"><div className="st-line"/><div className={`st-ic ${st}`}>{st==="done"?"✓":s.n}</div><div className="st-ct"><h4 style={{color:st==="active"?"#60a5fa":st==="done"?"#4ade80":"#94a3b8"}}>{s.l}</h4><p>{s.d}</p></div></div>);})}</div>);
+}
+
+function Workflow(){
+  const [tks,setTks]=useState(initTickets),[sel,setSel]=useState(null),[newF,setNewF]=useState(false);
+  const [form,setForm]=useState({title:"",customer:"",machine:"",brand:"",branch:"",priority:"medium",type:"Corrective"});
+  const cols=["New Ticket","Planning","Confirmed","On-site","Review","Closed"];
+  const colC={"New Ticket":"#475569","Planning":"#f59e0b","Confirmed":"#3b82f6","On-site":"#8b5cf6","Review":"#ec4899","Closed":"#22c55e"};
+  function advance(tk,from){const idx=cols.indexOf(from);if(idx>=cols.length-1)return;const to=cols[idx+1];setTks(prev=>{const u={...prev};u[from]=u[from].filter(t=>t.id!==tk.id);u[to]=[...u[to],{...tk,step:Math.min((tk.step||1)+1,8),callStatus:to==="Confirmed"?"confirmed":tk.callStatus}];return u;});setSel(null);}
+  function addTk(){const id=`TK-2026-0${Math.floor(Math.random()*900)+91}`;setTks(prev=>({...prev,"New Ticket":[{...form,id,assignee:null,step:1,callStatus:null,parts:false,date:"16.05.26"},...prev["New Ticket"]]}));setNewF(false);setForm({title:"",customer:"",machine:"",brand:"",branch:"",priority:"medium",type:"Corrective"});}
+  const allTk=Object.values(tks).flat(),openTk=allTk.length-tks["Closed"].length;
+  return(<div>
+    <div className="ph"><h2>Service Tracking Workflow</h2><p>Kanban 8-step · Open: {openTk} tickets · Total: {allTk.length}</p></div>
+    <div className="ca">
+      <div style={{marginBottom:12,display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <button className="btn btn-p" onClick={()=>setNewF(true)}>＋ New Ticket</button>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {Object.entries(tks).map(([col,items])=>(<span key={col} style={{fontSize:10,color:colC[col],background:"#111827",border:`1px solid ${colC[col]}30`,borderRadius:6,padding:"3px 8px"}}>{col}: <strong>{items.length}</strong></span>))}
+        </div>
+      </div>
+      <div className="kanban">
+        {cols.map(col=>(<div key={col} className="kcol">
+          <div className="kcol-h"><span style={{color:colC[col]}}>{col}</span><span style={{fontSize:10,background:"#0f172a",color:"#64748b",borderRadius:8,padding:"1px 6px",fontWeight:700}}>{tks[col].length}</span></div>
+          <div className="kcol-b">
+            {tks[col].map(t=>(<div key={t.id} className="tk" onClick={()=>setSel({t,col})}>
+              <div className="tk-id">{t.id}</div>
+              <div className="tk-t">{t.title}</div>
+              <div style={{marginBottom:3}}><PrioBdg p={t.priority}/></div>
+              <div className="tk-m">👤 {t.customer.substring(0,22)}{t.customer.length>22?"…":""}</div>
+              <div className="tk-m">📍 {t.branch}</div>
+              {t.assignee&&<div className="tk-m" style={{color:"#60a5fa"}}>🔧 {t.assignee.split("(")[1]?.replace(")","")}</div>}
+              {t.parts&&<div style={{marginTop:3}}><span className="badge by">⚙ Parts</span></div>}
+            </div>))}
+          </div>
+        </div>))}
+      </div>
+    </div>
+    {sel&&(<div className="mo" onClick={()=>setSel(null)}><div className="mb" onClick={e=>e.stopPropagation()}>
+      <div className="mh"><div><div style={{fontSize:10,color:"#475569",fontFamily:"monospace"}}>{sel.t.id}</div><h3>{sel.t.title}</h3></div><button className="btn btn-g" style={{padding:"3px 8px"}} onClick={()=>setSel(null)}>✕</button></div>
+      <div className="mbody">
+        <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}><PrioBdg p={sel.t.priority}/><span className="badge bb">{sel.t.type}</span><Bdg type="purple" lbl={sel.t.brand}/>{sel.t.callStatus==="confirmed"&&<span className="badge bg">📞 Confirmed</span>}{sel.t.parts&&<span className="badge by">⚙ Parts</span>}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+          {[["ลูกค้า",sel.t.customer],["เครื่อง",sel.t.machine],["สาขา",sel.t.branch],["Assign ให้",sel.t.assignee||"ยังไม่ได้ assign"],["วันที่รับงาน",sel.t.date],["Step ปัจจุบัน",`${sel.t.step}/8`]].map(([k,v])=>(<div key={k} style={{background:"#111827",borderRadius:7,padding:"7px 10px"}}><div style={{fontSize:9,color:"#475569",textTransform:"uppercase",letterSpacing:".4px",marginBottom:2}}>{k}</div><div style={{color:"#e2e8f0",fontSize:12,fontWeight:600}}>{v}</div></div>))}
+        </div>
+        <div style={{marginBottom:14}}><div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:".5px",fontWeight:600,marginBottom:10}}>Workflow Progress</div><WorkSteps t={sel.t}/></div>
+        {sel.col!=="Closed"&&(<div style={{display:"flex",gap:8,justifyContent:"flex-end",paddingTop:10,borderTop:"1px solid #334155"}}><button className="btn btn-g" onClick={()=>setSel(null)}>ปิด</button><button className="btn btn-p" onClick={()=>advance(sel.t,sel.col)}>Advance → {cols[cols.indexOf(sel.col)+1]}</button></div>)}
+      </div>
+    </div></div>)}
+    {newF&&(<div className="mo" onClick={()=>setNewF(false)}><div className="mb" onClick={e=>e.stopPropagation()}>
+      <div className="mh"><h3>New Service Ticket</h3><button className="btn btn-g" style={{padding:"3px 8px"}} onClick={()=>setNewF(false)}>✕</button></div>
+      <div className="mbody">
+        <div className="al al-i" style={{marginBottom:12}}>📋 Simulating MS Forms — จะแจ้งเตือน Engineer Lead + Associate + Service Manager</div>
+        {[{k:"title",l:"รายละเอียดปัญหา",ph:"เช่น XERF ไม่มี output พลังงาน"},{k:"customer",l:"ชื่อลูกค้า / คลินิก",ph:"เช่น Mantra Clinic นครพนม"},{k:"machine",l:"ชื่อเครื่อง",ph:"เช่น XERF System Package"},{k:"brand",l:"แบรนด์",ph:"Lutronic, Cynosure, Venus..."},{k:"branch",l:"สาขา / ที่ตั้ง",ph:"เช่น ภูเก็ต, กรุงเทพฯ"}].map(f=>(<div key={f.k} className="fg"><label>{f.l}</label><input className="fi" placeholder={f.ph} value={form[f.k]} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))}/></div>))}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div className="fg"><label>Priority</label><select className="fi" value={form.priority} onChange={e=>setForm(p=>({...p,priority:e.target.value}))}>{["critical","high","medium","low"].map(v=><option key={v} value={v}>{v.charAt(0).toUpperCase()+v.slice(1)}</option>)}</select></div>
+          <div className="fg"><label>ประเภทงาน</label><select className="fi" value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))}>{["Corrective","PM","Installation","Warranty"].map(v=><option key={v} value={v}>{v}</option>)}</select></div>
+        </div>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",paddingTop:10,borderTop:"1px solid #334155"}}><button className="btn btn-g" onClick={()=>setNewF(false)}>ยกเลิก</button><button className="btn btn-s" onClick={addTk} disabled={!form.title||!form.customer}>Submit Ticket</button></div>
+      </div>
+    </div></div>)}
+  </div>);
+}
+
+function App(){
+  const [page,setPage]=useState("overview");
+  const nav=[
+    {id:"overview",label:"Overview",icon:"▦"},
+    {id:"machines",label:"Machine Inventory",icon:"🖥"},
+    {id:"workflow",label:"Service Workflow",icon:"📋"},
+  ];
+  return(<div className="shell">
+    <div className="sb">
+      <div className="sb-logo">
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+          <div style={{width:26,height:26,borderRadius:7,background:"linear-gradient(135deg,#3b82f6,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}}>A</div>
+          <h1>AESLA</h1>
+        </div>
+        <p>Service Operations</p>
+      </div>
+      <div style={{padding:"10px 0"}}>
+        {nav.map(n=>(<div key={n.id} className={`nav-item${page===n.id?" active":""}`} onClick={()=>setPage(n.id)}><span style={{fontSize:14}}>{n.icon}</span><span>{n.label}</span></div>))}
+      </div>
+      <div className="sb-sect">Integration</div>
+      <div className="sb-status"><span className="dot dot-g"/><span>SAP PM</span></div>
+      <div className="sb-status"><span className="dot dot-g"/><span>SharePoint API</span></div>
+      <div className="sb-status"><span className="dot dot-y"/><span>MS Forms</span></div>
+      <div className="sb-status"><span className="dot dot-b"/><span>Power Automate</span></div>
+      <div className="sb-sect" style={{marginTop:8}}>Data Source</div>
+      <div className="sb-status" style={{fontSize:10}}><span>ET technician.xlsx ✓</span></div>
+      <div className="sb-status" style={{fontSize:10}}><span>Service Package Report ✓</span></div>
+      <div className="sb-status" style={{fontSize:10}}><span>Summary 2026.xlsx ✓</span></div>
+      <div className="sb-foot"><div style={{marginBottom:2,fontWeight:600}}>Oil Supasan</div><div>Service Manager · AESLA</div><div style={{marginTop:3,color:"#334155"}}>v2.0 · พ.ค. 2569</div></div>
+    </div>
+    <div className="main">
+      {page==="overview"&&<Overview/>}
+      {page==="machines"&&<Machines/>}
+      {page==="workflow"&&<Workflow/>}
+    </div>
+  </div>);
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
