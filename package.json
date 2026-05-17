@@ -1,7 +1,7 @@
 {
   "name": "aesla-field-service",
-  "version": "2.0.0",
-  "description": "AESLA Field Service Maintenance Web App — Google Drive + SAP Integration",
+  "version": "3.0.0",
+  "description": "AESLA Field Service — Service Operations Dashboard + Supabase",
   "main": "server.js",
   "scripts": {
     "start"  : "node server.js",
@@ -9,10 +9,10 @@
     "build"  : "echo 'No build step needed'"
   },
   "dependencies": {
-    "body-parser": "^1.20.2",
-    "cors"       : "^2.8.5",
-    "express"    : "^4.18.2",
-    "googleapis" : "^144.0.0"
+    "body-parser"           : "^1.20.2",
+    "cors"                  : "^2.8.5",
+    "express"               : "^4.18.2",
+    "@supabase/supabase-js" : "^2.43.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
@@ -20,6 +20,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["field-service", "sap", "maintenance", "google-drive", "aesla"],
+  "keywords": ["field-service", "supabase", "aesla"],
   "license": "UNLICENSED"
 }

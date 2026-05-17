@@ -1,9 +1,9 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- *  AESLA Field Service — Backend API  v2.0
+ *  AESLA Field Service — Backend API  v3.0
  *  Stack   : Node.js + Express
- *  Storage : Google Drive (JSON records) + Google Sheets (log)
- *  Deploy  : Vercel / Render / Railway
+ *  Storage : Supabase (PostgreSQL)
+ *  Deploy  : Vercel
  * ═══════════════════════════════════════════════════════════════
  */
 
@@ -14,46 +14,35 @@ const cors       = require('cors');
 const bodyParser = require('body-parser');
 const path       = require('path');
 const crypto     = require('crypto');
-const { google } = require('googleapis');
+const { createClient } = require('@supabase/supabase-js');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // ─── ENV CONFIG ───────────────────────────────────────────────
 const CONFIG = {
-  googleServiceAccountJson : process.env.GOOGLE_SERVICE_ACCOUNT_JSON || null,
-  googleDriveFolderId      : process.env.GOOGLE_DRIVE_FOLDER_ID      || null,
-  googleSheetId            : process.env.GOOGLE_SHEET_ID             || null,
-  sapBaseUrl               : process.env.SAP_BASE_URL                || null,
-  nodeEnv                  : process.env.NODE_ENV                    || 'development',
+  supabaseUrl            : process.env.SUPABASE_URL              || null,
+  supabaseServiceRoleKey : process.env.SUPABASE_SERVICE_ROLE_KEY || null,
+  nodeEnv                : process.env.NODE_ENV                   || 'development',
 };
 
-// ─── Google Auth (lazy init) ──────────────────────────────────
-let _auth = null;
-function getGoogleAuth() {
-  if (_auth) return _auth;
-  if (!CONFIG.googleServiceAccountJson) return null;
-  try {
-    const credentials = typeof CONFIG.googleServiceAccountJson === 'string'
-      ? JSON.parse(CONFIG.googleServiceAccountJson)
-      : CONFIG.googleServiceAccountJson;
-    _auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: [
-        'https://www.googleapis.com/auth/drive.file',
-        'https://www.googleapis.com/auth/spreadsheets',
-      ],
-    });
-    return _auth;
-  } catch (err) {
-    console.error('❌ Google Auth init failed:', err.message);
+// ─── Supabase Client (lazy init) ─────────────────────────────
+let _supabase = null;
+function getSupabase() {
+  if (_supabase) return _supabase;
+  if (!CONFIG.supabaseUrl || !CONFIG.supabaseServiceRoleKey) {
+    console.warn('⚠️  Supabase not configured — check env vars');
     return null;
   }
+  _supabase = createClient(CONFIG.supabaseUrl, CONFIG.supabaseServiceRoleKey, {
+    auth: { persistSession: false },
+  });
+  return _supabase;
 }
 
 // ─── Middleware ───────────────────────────────────────────────
 app.use(cors());
-app.use(bodyParser.json({ limit: '10mb' }));  // 10mb for base64 signature images
+app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname)));
 
@@ -63,280 +52,248 @@ app.use((req, res, next) => {
 });
 
 // ════════════════════════════════════════════════════════════════
-//  GOOGLE DRIVE — Save JSON record as file
-// ════════════════════════════════════════════════════════════════
-async function saveToDrive(internalId, payload) {
-  const auth = getGoogleAuth();
-  if (!auth || !CONFIG.googleDriveFolderId) {
-    console.log('⚠️  Google Drive not configured — skipping Drive save');
-    return null;
-  }
-
-  const drive = google.drive({ version: 'v3', auth });
-  const sr    = payload.serviceRecord;
-
-  // Sanitise clinic name for filename
-  const clinic = (sr.customer?.clinicName || 'Unknown')
-    .replace(/[^a-zA-Z0-9ก-๙\s]/g, '').trim().replace(/\s+/g, '_').slice(0, 30);
-  const date   = sr.serviceDetails?.serviceDate || new Date().toISOString().split('T')[0];
-  const recId  = (sr.metadata?.recordId || internalId).replace(/[^a-zA-Z0-9\-]/g, '');
-  const fileName = `AESLA_${recId}_${clinic}_${date}.json`;
-
-  try {
-    const { Readable } = require('stream');
-    const bodyStream   = Readable.from([JSON.stringify(payload, null, 2)]);
-
-    const res = await drive.files.create({
-      requestBody: {
-        name    : fileName,
-        mimeType: 'application/json',
-        parents : [CONFIG.googleDriveFolderId],
-      },
-      media: {
-        mimeType : 'application/json',
-        body     : bodyStream,
-      },
-      fields: 'id, name, webViewLink',
-    });
-
-    console.log(`✅ Drive saved: ${res.data.name} (${res.data.id})`);
-    return { fileId: res.data.id, fileName: res.data.name, webViewLink: res.data.webViewLink };
-  } catch (err) {
-    console.error('❌ Drive save failed:', err.message);
-    return null;
-  }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  GOOGLE SHEETS — Append summary row
-// ════════════════════════════════════════════════════════════════
-const SHEET_HEADERS = [
-  'Report No.', 'Submitted At', 'Technician',
-  'Customer Clinic', 'Customer Name', 'Customer Email',
-  'Machine / Equipment', 'Serial Number', 'Software Model',
-  'Service Type', 'Service Date',
-  'Problem Category', 'Error Code', 'Symptom (short)',
-  'Action Taken (short)', 'Parts Count', 'Downtime (hrs)',
-  'Machine Status After', 'PM Pass Count', 'PM Fail Count',
-  'Customer Signed', 'Drive File Link', 'Internal ID',
-];
-
-async function ensureSheetHeader(sheets) {
-  if (!CONFIG.googleSheetId) return;
-  try {
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: CONFIG.googleSheetId,
-      range: 'Sheet1!A1:A1',
-    });
-    if (!res.data.values || res.data.values.length === 0) {
-      await sheets.spreadsheets.values.update({
-        spreadsheetId  : CONFIG.googleSheetId,
-        range          : 'Sheet1!A1',
-        valueInputOption: 'RAW',
-        requestBody    : { values: [SHEET_HEADERS] },
-      });
-      console.log('✅ Sheet headers written');
-    }
-  } catch (e) {
-    console.warn('⚠️  Could not write sheet headers:', e.message);
-  }
-}
-
-async function appendToSheet(internalId, payload, driveResult) {
-  const auth = getGoogleAuth();
-  if (!auth || !CONFIG.googleSheetId) {
-    console.log('⚠️  Google Sheets not configured — skipping Sheet append');
-    return null;
-  }
-
-  const sheets = google.sheets({ version: 'v4', auth });
-  const sr     = payload.serviceRecord;
-  const sd     = sr.serviceDetails;
-  const sigs   = sr.signatures || {};
-
-  await ensureSheetHeader(sheets);
-
-  const passCount = (sd.pmChecklist || []).filter(r => r.result === 'PASS').length;
-  const failCount = (sd.pmChecklist || []).filter(r => r.result === 'FAIL').length;
-
-  const row = [
-    sr.metadata?.recordId                           || '',
-    sr.metadata?.submittedAt                        || '',
-    sr.metadata?.submittedBy                        || '',
-    sr.customer?.clinicName                         || '',
-    sr.customer?.contactName                        || '',
-    sr.customer?.contactEmail                       || '',
-    sr.equipment?.equipmentName                     || '',
-    sr.equipment?.serialNumber                      || '',
-    sr.equipment?.softwareModel                     || '',
-    sd.serviceType                                  || '',
-    sd.serviceDate                                  || '',
-    (sd.problemCategory || []).join(', ')           || '',
-    sd.errorCode                                    || '',
-    (sd.symptom   || '').slice(0, 120),
-    (sd.actionTaken || '').slice(0, 120),
-    sd.replacedPartsCount                           || 0,
-    sd.downtimeHours                                || 0,
-    sd.machineStatusAfterService                    || '',
-    passCount,
-    failCount,
-    sigs.customerSigned ? 'YES' : 'NO',
-    driveResult?.webViewLink                        || '',
-    internalId,
-  ];
-
-  try {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId   : CONFIG.googleSheetId,
-      range           : 'Sheet1!A:W',
-      valueInputOption: 'RAW',
-      requestBody     : { values: [row] },
-    });
-    console.log(`✅ Sheet row appended for ${sr.metadata?.recordId}`);
-    return true;
-  } catch (err) {
-    console.error('❌ Sheet append failed:', err.message);
-    return false;
-  }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  VALIDATION
-// ════════════════════════════════════════════════════════════════
-function validatePayload(payload) {
-  const errors = [];
-  const sr = payload?.serviceRecord;
-  if (!sr)                                          errors.push('Missing serviceRecord');
-  if (!sr?.metadata?.submittedBy?.trim())           errors.push('metadata.submittedBy required');
-  if (!sr?.metadata?.recordId?.trim())              errors.push('metadata.recordId (Report No.) required');
-  if (!sr?.customer?.clinicName?.trim())            errors.push('customer.clinicName required');
-  if (!sr?.customer?.contactName?.trim())           errors.push('customer.contactName required');
-  if (!sr?.customer?.contactEmail?.trim())          errors.push('customer.contactEmail required');
-  if (!sr?.equipment?.equipmentName?.trim())        errors.push('equipment.equipmentName required');
-  if (!sr?.equipment?.serialNumber?.trim())         errors.push('equipment.serialNumber required');
-  if (!sr?.serviceDetails?.symptom?.trim())         errors.push('serviceDetails.symptom required');
-  if (!sr?.serviceDetails?.actionTaken?.trim())     errors.push('serviceDetails.actionTaken required');
-  return errors;
-}
-
-// ════════════════════════════════════════════════════════════════
 //  ROUTES
 // ════════════════════════════════════════════════════════════════
 
-// ── Health ─────────────────────────────────────────────────────
+// ── Health ────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({
     status   : 'ok',
-    service  : 'AESLA Field Service API v2',
+    service  : 'AESLA Field Service API v3.0',
     timestamp: new Date().toISOString(),
     storage  : {
-      googleDrive : !!CONFIG.googleDriveFolderId && !!CONFIG.googleServiceAccountJson,
-      googleSheets: !!CONFIG.googleSheetId && !!CONFIG.googleServiceAccountJson,
-      sap         : !!CONFIG.sapBaseUrl,
+      supabase: !!CONFIG.supabaseUrl && !!CONFIG.supabaseServiceRoleKey,
     },
   });
 });
 
-// ── Submit Service Record ───────────────────────────────────────
-app.post('/api/service-record', async (req, res) => {
+// ── POST /api/tickets — บันทึก ticket ใหม่ ────────────────────
+app.post('/api/tickets', async (req, res) => {
   try {
-    const payload = req.body;
-
-    // 1. Validate
-    const errors = validatePayload(payload);
-    if (errors.length > 0) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors });
+    const body = req.body;
+    if (!body || !body.title || !body.customer) {
+      return res.status(400).json({ success: false, message: 'title and customer are required' });
     }
 
-    // 2. Internal ID
-    const internalId = `AESLA-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    const ticketId = body.id || `TK-${new Date().getFullYear()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    const now      = new Date().toISOString();
 
-    // 3. Save to Google Drive (JSON file)
-    const driveResult = await saveToDrive(internalId, payload);
+    const record = {
+      ticket_id     : ticketId,
+      submitted_at  : now,
+      title         : body.title        || '',
+      customer      : body.customer     || '',
+      machine       : body.machine      || '',
+      brand         : body.brand        || '',
+      branch        : body.branch       || '',
+      priority      : body.priority     || 'medium',
+      type          : body.type         || '',
+      assignee      : body.assignee     || null,
+      step          : body.step         || 1,
+      call_status   : body.callStatus   || null,
+      parts_required: body.parts ? true : false,
+      raw_payload   : body,
+    };
 
-    // 4. Append to Google Sheets (summary log)
-    await appendToSheet(internalId, payload, driveResult);
-
-    // 5. (Optional) Forward to SAP — uncomment when SAP endpoint is ready
-    /*
-    if (CONFIG.sapBaseUrl) {
-      const sapPayload = transformToSapFormat(payload.serviceRecord);
-      const sapRes = await fetch(`${CONFIG.sapBaseUrl}/ServiceOrders`, {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${await getSapToken()}` },
-        body   : JSON.stringify(sapPayload),
+    const sb = getSupabase();
+    if (!sb) {
+      console.warn('⚠️  Supabase not ready — returning ticket ID only');
+      return res.status(201).json({
+        success : true,
+        message : 'Ticket created (Supabase not configured — data not persisted)',
+        ticketId,
+        savedAt : now,
       });
-      const sapData = await sapRes.json();
-      console.log('SAP response:', sapData);
     }
-    */
 
-    // 6. Fallback local log (always — for debugging)
-    try {
-      const fs = require('fs');
-      const logEntry = {
-        internalId, receivedAt: new Date().toISOString(),
-        recordId: payload.serviceRecord.metadata.recordId,
-        clinicName: payload.serviceRecord.customer.clinicName,
-        driveFileId: driveResult?.fileId || null,
-        driveLink: driveResult?.webViewLink || null,
-      };
-      fs.appendFileSync(path.join(__dirname, 'service_records_log.jsonl'), JSON.stringify(logEntry) + '\n');
-    } catch (_) { /* ignore log errors in serverless */ }
+    const { data, error } = await sb.from('tickets').insert(record).select().single();
+    if (error) throw error;
 
-    // 7. Respond
     return res.status(201).json({
-      success    : true,
-      message    : 'Service record saved successfully',
-      internalId,
-      recordId   : payload.serviceRecord.metadata.recordId,
-      driveFileId: driveResult?.fileId   || null,
-      driveLink  : driveResult?.webViewLink || null,
-      sheetLogged: !!CONFIG.googleSheetId,
-      submittedAt: new Date().toISOString(),
+      success : true,
+      message : 'Ticket saved to Supabase ✅',
+      ticketId,
+      dbId    : data.id,
+      savedAt : now,
     });
-
   } catch (err) {
-    console.error('❌ Error:', err);
-    return res.status(500).json({
-      success: false,
-      message: CONFIG.nodeEnv === 'development' ? err.message : 'Server error — contact administrator',
-    });
+    console.error('❌ /api/tickets error:', err);
+    return res.status(500).json({ success: false, message: CONFIG.nodeEnv === 'development' ? err.message : 'Server error' });
   }
 });
 
-// ── List records (local log) ────────────────────────────────────
-app.get('/api/service-records', (req, res) => {
-  const fs = require('fs');
-  const logPath = path.join(__dirname, 'service_records_log.jsonl');
+// ── GET /api/tickets — ดึง tickets จาก Supabase ──────────────
+app.get('/api/tickets', async (req, res) => {
   try {
-    if (!fs.existsSync(logPath)) return res.json({ records: [], total: 0 });
-    const lines = fs.readFileSync(logPath, 'utf8')
-      .split('\n').filter(Boolean).map(JSON.parse).reverse();
-    res.json({ records: lines, total: lines.length });
+    const sb = getSupabase();
+    if (!sb) return res.json({ success: true, tickets: [], message: 'Supabase not configured' });
+
+    const { data, error } = await sb
+      .from('tickets')
+      .select('*')
+      .order('submitted_at', { ascending: false });
+
+    if (error) throw error;
+
+    const tickets = (data || []).map(r => ({
+      ticketId     : r.ticket_id,
+      submittedAt  : r.submitted_at,
+      title        : r.title,
+      customer     : r.customer,
+      machine      : r.machine,
+      brand        : r.brand,
+      branch       : r.branch,
+      priority     : r.priority,
+      type         : r.type,
+      assignee     : r.assignee,
+      step         : r.step,
+      callStatus   : r.call_status,
+      partsRequired: r.parts_required,
+    }));
+
+    res.json({ success: true, tickets, total: tickets.length });
   } catch (err) {
-    res.status(500).json({ error: 'Could not read records' });
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── PATCH /api/tickets/:ticketId — อัปเดต step/assignee/status ─
+app.patch('/api/tickets/:ticketId', async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const updates      = req.body;
+
+    const sb = getSupabase();
+    if (!sb) return res.status(503).json({ success: false, message: 'Supabase not configured' });
+
+    const patch = {};
+    if (updates.step       !== undefined) patch.step          = updates.step;
+    if (updates.assignee   !== undefined) patch.assignee      = updates.assignee;
+    if (updates.callStatus !== undefined) patch.call_status   = updates.callStatus;
+    if (updates.parts      !== undefined) patch.parts_required = updates.parts;
+
+    const { data, error } = await sb
+      .from('tickets')
+      .update(patch)
+      .eq('ticket_id', ticketId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, ticket: data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── POST /api/service-record — Field Service Report ────────────
+app.post('/api/service-record', async (req, res) => {
+  try {
+    const payload = req.body;
+    if (!payload?.serviceRecord) {
+      return res.status(400).json({ success: false, message: 'Missing serviceRecord' });
+    }
+
+    const sr         = payload.serviceRecord;
+    const internalId = `AESLA-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    const recordId   = sr.metadata?.recordId || internalId;
+    const now        = new Date().toISOString();
+    const sd         = sr.serviceDetails || {};
+
+    const record = {
+      record_id      : recordId,
+      submitted_at   : sr.metadata?.submittedAt || now,
+      technician     : sr.metadata?.submittedBy || '',
+      clinic         : sr.customer?.clinicName  || '',
+      equipment      : sr.equipment?.equipmentName || '',
+      serial_no      : sr.equipment?.serialNumber  || '',
+      service_type   : sd.serviceType            || '',
+      service_date   : sd.serviceDate            || null,
+      symptom        : (sd.symptom     || '').slice(0, 500),
+      action_taken   : (sd.actionTaken || '').slice(0, 500),
+      parts_count    : sd.replacedPartsCount  || 0,
+      downtime_hours : sd.downtimeHours       || 0,
+      machine_status : sd.machineStatusAfterService || '',
+      raw_payload    : payload,
+    };
+
+    const sb = getSupabase();
+    if (!sb) {
+      return res.status(201).json({
+        success    : true,
+        message    : 'Record created (Supabase not configured — not persisted)',
+        internalId , recordId,
+        submittedAt: now,
+      });
+    }
+
+    const { data, error } = await sb.from('service_records').insert(record).select().single();
+    if (error) throw error;
+
+    return res.status(201).json({
+      success    : true,
+      message    : 'Service record saved to Supabase ✅',
+      internalId ,
+      recordId   ,
+      dbId       : data.id,
+      submittedAt: now,
+    });
+  } catch (err) {
+    console.error('❌ /api/service-record error:', err);
+    return res.status(500).json({ success: false, message: CONFIG.nodeEnv === 'development' ? err.message : 'Server error' });
+  }
+});
+
+// ── GET /api/service-records ───────────────────────────────────
+app.get('/api/service-records', async (req, res) => {
+  try {
+    const sb = getSupabase();
+    if (!sb) return res.json({ success: true, records: [] });
+
+    const { data, error } = await sb
+      .from('service_records')
+      .select('*')
+      .order('submitted_at', { ascending: false });
+
+    if (error) throw error;
+
+    const records = (data || []).map(r => ({
+      recordId     : r.record_id,
+      submittedAt  : r.submitted_at,
+      technician   : r.technician,
+      clinic       : r.clinic,
+      equipment    : r.equipment,
+      serialNo     : r.serial_no,
+      serviceType  : r.service_type,
+      serviceDate  : r.service_date,
+      symptom      : r.symptom,
+      actionTaken  : r.action_taken,
+      partsCount   : r.parts_count,
+      downtime     : r.downtime_hours,
+      machineStatus: r.machine_status,
+    }));
+
+    res.json({ success: true, records, total: records.length });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // ── Fallback → serve frontend ──────────────────────────────────
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
+app.get('*',         (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 // ── Start ──────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  const driveOk  = !!CONFIG.googleDriveFolderId && !!CONFIG.googleServiceAccountJson;
-  const sheetsOk = !!CONFIG.googleSheetId && !!CONFIG.googleServiceAccountJson;
+  const sbOk = !!CONFIG.supabaseUrl && !!CONFIG.supabaseServiceRoleKey;
   console.log('');
   console.log('╔══════════════════════════════════════════════╗');
-  console.log('║   AESLA Field Service API v2  — RUNNING      ║');
+  console.log('║   AESLA Field Service API v3.0 — RUNNING     ║');
   console.log(`║   http://localhost:${PORT}                      ║`);
   console.log('╠══════════════════════════════════════════════╣');
-  console.log(`║   Google Drive  : ${driveOk  ? '✅ CONNECTED   ' : '⚠️  NOT SET     '}           ║`);
-  console.log(`║   Google Sheets : ${sheetsOk ? '✅ CONNECTED   ' : '⚠️  NOT SET     '}           ║`);
+  console.log(`║   Supabase : ${sbOk ? '✅ CONNECTED             ' : '⚠️  NOT SET               '}║`);
   console.log('╚══════════════════════════════════════════════╝');
   console.log('');
 });
 
-module.exports = app;  // for Vercel serverless
+module.exports = app;
